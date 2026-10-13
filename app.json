@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "تطبيق القاضي للعلوم",
+    "slug": "alqadi-science-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./1791891992750.jpg",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./1791891992750.jpg",
+      "resizeMode": "contain",
+      "backgroundColor": "#1E3A8A"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.alqadi.scienceapp",
+      "adaptiveIcon": {
+        "foregroundImage": "./1791891992750.jpg",
+        "backgroundColor": "#1E3A8A"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}
