@@ -1,5 +1,6 @@
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || '',
@@ -17,3 +18,4 @@ export const firebaseReady = Boolean(
 
 const app = firebaseReady ? (getApps().length ? getApp() : initializeApp(firebaseConfig)) : null;
 export const db = app ? getFirestore(app) : null;
+export const storage = app ? getStorage(app) : null;
