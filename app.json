@@ -4,10 +4,10 @@
     "slug": "alqadi-science-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./1791891992750.jpg",
+    "icon": "./app-profile.jpg",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./1791891992750.jpg",
+      "image": "./app-profile.jpg",
       "resizeMode": "contain",
       "backgroundColor": "#1E3A8A"
     },
@@ -17,7 +17,7 @@
     "android": {
       "package": "com.alqadi.scienceapp",
       "adaptiveIcon": {
-        "foregroundImage": "./1791891992750.jpg",
+        "foregroundImage": "./app-profile.jpg",
         "backgroundColor": "#1E3A8A"
       }
     },
