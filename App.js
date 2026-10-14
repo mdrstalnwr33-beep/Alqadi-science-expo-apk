@@ -54,7 +54,8 @@ export default function App() {
   if (screen === 'studentSubject') return <StudentSubject level={level} subject={subject} content={data.content[levelId]?.[subjectId]} onCategory={(id) => go('studentContent', { category: id })} onBack={back} />;
       if (screen === 'studentExam') return <StudentExamScreen studentLevel={session?.level || 'first'} />;
   if (screen === 'teacherExamCreate') return <CreateExamScreen />;
-    
+if (screen === 'teacherHomeworkCreate') return <CreateHomeworkScreen />;
+
                                                                                                                                   
 if (screen === 'studentContent') return <StudentContent category={category} subject={subject} level={level} items={currentItems} data={data} session={session} onBack={back} onDownload={download} onQuiz={(id) => go('quiz', { item: id })} />;
   if (screen === 'quiz') { const quiz = currentItems.find((x) => x.id === itemId); return <QuizScreen quiz={quiz} attempted={data.attempts[`${session.id}-${itemId}`]} onBack={back} onSubmit={(answers) => submitQuiz(quiz, answers)} />; }
