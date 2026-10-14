@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Button, Alert, StyleSheet } from 'react-native';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from './firebaseConfig'; // تأكد من صحة مسار ملف فايربيس لديك
+import { db } from './src/firebaseConfig';
+
 
 export default function StudentExamScreen({ studentLevel = 'first' }) {
   const [exams, setExams] = useState([]);
