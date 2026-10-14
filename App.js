@@ -64,7 +64,11 @@ if (screen === 'studentContent') return <StudentContent category={category} subj
   if (screen === 'teacherLevel') return <TeacherLevel level={level} students={data.students.filter((x) => x.level === levelId)} onStudents={() => go('teacherStudents')} onSubject={(id) => go('teacherSubject', { subject: id, category: null })} onBack={back} onLogout={logout} />;
   if (screen === 'teacherStudents') return <TeacherStudents level={level} students={data.students.filter((x) => x.level === levelId)} form={form} setForm={setForm} onAdd={addStudent} onToggle={toggleStudent} onDelete={deleteStudent} onBack={back} />;
   if (screen === 'teacherSubject') return <TeacherSubject level={level} subject={subject} category={category} items={data.content[levelId]?.[subjectId]} form={form} setForm={setForm} onCategory={(id) => setCategoryId(id)} onAdd={addContent} onQuiz={addQuiz} onUpload={uploadPdf} onBack={back} loading={busy} />;
-  return <Landing onStudent={() => go('studentLogin')} onTeacher={() => go('teacherLogin')} onAbout={() => go('about')} />;
+  if (screen === 'studentExam') return <StudentExamScreen studentLevel={session?.level || 'first'} />;
+if (screen === 'teacherExamCreate') return <CreateExamScreen />;
+if (screen === 'teacherHomeworkCreate') return <CreateHomeworkScreen />;
+    
+return <Landing onStudent={() => go('studentLogin')} onTeacher={() => go('teacherLogin')} onAbout={() => go('about')} />;
 }
 
 function Landing({ onStudent, onTeacher, onAbout }) { return <Page><View style={styles.logo}><Text style={styles.logoText}>ق</Text></View><Text style={styles.school}>مدرسة النور الأساسية الثانوية بالروحاء</Text><Text style={styles.appTitle}>تطبيق القاضي للعلوم</Text><Text style={styles.subtitle}>تعلم منظم لكل مستوى دراسي</Text><BigAction title="دخول الطالب" icon="◉" color="#1f5eff" onPress={onStudent} /><BigAction title="دخول المعلم" icon="⌘" color="#0f9f76" onPress={onTeacher} /><BigAction title="السيرة الذاتية للمعلم" icon="ⓘ" color="#7c3aed" onPress={onAbout} /></Page>; }
