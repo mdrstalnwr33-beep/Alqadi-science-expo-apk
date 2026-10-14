@@ -75,4 +75,3 @@ const styles = StyleSheet.create({
   submitBtnText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
   scoreText: { fontSize: 18, fontWeight: 'bold', color: '#10b981', textAlign: 'center', marginVertical: 20 }
 });
-export default StudentExamScreen;
