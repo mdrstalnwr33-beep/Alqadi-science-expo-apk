@@ -6,7 +6,7 @@ import { db, firebaseReady } from './src/firebaseConfig';
 const TYPE_LABELS = { multiple_choice: 'اختيار من متعدد', true_false: 'صح / خطأ', text: 'إجابة قصيرة', multiple: 'اختيار من متعدد' };
 const LEVELS = { first: 'الأول الثانوي', second: 'الثاني الثانوي', third: 'الثالث الثانوي' };
 
-export default function StudentExamScreen({ studentLevel = 'first', studentId = 'guest' }) {
+export default function StudentExamScreen({ studentLevel = 'first', studentId = 'guest', subject = 'chemistry' }) {
   const [exams, setExams] = useState([]);
   const [attemptedIds, setAttemptedIds] = useState(new Set());
   const [selected, setSelected] = useState(null);
@@ -29,7 +29,7 @@ export default function StudentExamScreen({ studentLevel = 'first', studentId = 
           attemptSnap = await getDocs(query(collection(db, 'examAttempts'), where('studentId', '==', studentId)));
         }
         if (mounted) {
-          setExams(examSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((x) => x.active !== false));
+          setExams(examSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((x) => x.active !== false && (!x.subject || x.subject === subject)));
           setAttemptedIds(new Set(attemptSnap.docs.map((d) => d.data().examId).filter(Boolean)));
         }
       } catch (error) {
@@ -41,7 +41,7 @@ export default function StudentExamScreen({ studentLevel = 'first', studentId = 
     };
     load();
     return () => { mounted = false; };
-  }, [studentLevel, studentId]);
+  }, [studentLevel, studentId, subject]);
 
   const selectAnswer = (index, value) => {
     if (!submitted) setAnswers((current) => ({ ...current, [index]: value }));
