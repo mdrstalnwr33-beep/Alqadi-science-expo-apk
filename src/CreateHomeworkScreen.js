@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { db } from './firebaseConfig';
-import { collection, addDb, addDoc, serverTimestamp } from 'firebase/firestore'; // Note: handled via standard collection/addDoc
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function CreateHomeworkScreen({ navigation, route }) {
   const [title, setTitle] = useState('');
@@ -87,4 +87,3 @@ const styles = StyleSheet.create({
   publishBtn: { backgroundColor: '#10b981', padding: 15, borderRadius: 8, alignItems: 'center', marginTop: 10 },
   publishBtnText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
 });
-    
