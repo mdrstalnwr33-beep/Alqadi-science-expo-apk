@@ -1,3 +1,5 @@
+import CreateExamScreen from './CreateExamScreen';
+import StudentExamScreen from './StudentExamScreen';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, BackHandler, Image, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
