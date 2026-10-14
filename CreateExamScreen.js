@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, ScrollView, Alert, StyleSheet } from 'react-native';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from './firebaseConfig'; // تأكد من صحة مسار ملف فايربيس لديك
+import { db } from './src/firebaseConfig';
 
 export default function CreateExamScreen() {
   const [title, setTitle] = useState('');
