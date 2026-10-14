@@ -1,116 +1,78 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Button, Alert, StyleSheet } from 'react-native';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from './src/firebaseConfig';
+import React, { useState } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Alert } from 'react-native';
 
+export default function StudentExamScreen({ studentLevel = 'الأول الثانوي' }) {
+  const [selectedAnswer, setSelectedAnswer] = useState(null);
+  const [submitted, setSubmitted] = useState(false);
 
-export default function StudentExamScreen({ studentLevel = 'first' }) {
-  const [exams, setExams] = useState([]);
-  const [selectedExam, setSelectedExam] = useState(null);
-  const [studentAnswers, setStudentAnswers] = useState({});
-  const [score, setScore] = useState(null);
+  // نموذج سؤال تجريبي أو تفاعلي للطالب
+  const questionData = {
+    title: 'اختبار مادة العلوم - ' + studentLevel,
+    question: 'أي مما يلي يعد من المخاليط المتجانسة؟',
+    options: ['الماء والزيت', 'المحلول الملحي', 'الرمل والماء', 'برادة الحديد والسراميك'],
+    correctAnswer: 'المحلول الملحي'
+  };
 
-  useEffect(() => {
-    fetchExams();
-  }, [studentLevel]);
+  const handleAnswer = (option) => {
+    if (submitted) return;
+    setSelectedAnswer(option);
+  };
 
-  // جلب الاختبارات التابعة لمستوى الطالب من Firestore
-  const fetchExams = async () => {
-    try {
-      const q = query(
-        collection(db, 'exams'),
-        where('level', '==', studentLevel),
-        where('active', '==', true)
-      );
-      const querySnapshot = await getDocs(q);
-      const examList = [];
-      querySnapshot.forEach((doc) => {
-        examList.push({ id: doc.id, ...doc.data() });
-      });
-      setExams(examList);
-    } catch (error) {
-      console.error('خطأ في جلب الاختبارات:', error);
+  const submitAnswer = () => {
+    if (!selectedAnswer) {
+      Alert.alert('تنبيه', 'الرجاء اختيار إجابة قبل التسليم');
+      return;
     }
+    setSubmitted(true);
   };
-
-  // تسليم وتصحيح الإجابات فوراً
-  const handleSubmitExam = () => {
-    if (!selectedExam) return;
-
-    let totalScore = 0;
-    selectedExam.questions.forEach((q) => {
-      if (studentAnswers[q.id] === q.correctAnswer) {
-        totalScore += 1;
-      }
-    });
-
-    setScore(totalScore);
-    Alert.alert('نتيجة الاختبار', `لقد حصلت على ${totalScore} من ${selectedExam.questions.length}`);
-  };
-
-  if (selectedExam) {
-    return (
-      <ScrollView style={styles.container}>
-        <Button title="← العودة لقائمة الاختبارات" onPress={() => { setSelectedExam(null); setScore(null); setStudentAnswers({}); }} />
-        <Text style={styles.header}>{selectedExam.title}</Text>
-
-        {selectedExam.questions.map((q, idx) => (
-          <View key={q.id} style={styles.questionBox}>
-            <Text style={styles.questionText}>{idx + 1}. {q.questionText}</Text>
-            
-            {q.options.map((opt) => (
-              <TouchableOpacity
-                key={opt}
-                style={[
-                  styles.optionButton,
-                  studentAnswers[q.id] === opt && styles.selectedOption
-                ]}
-                onPress={() => setStudentAnswers({ ...studentAnswers, [q.id]: opt })}
-              >
-                <Text style={styles.optionText}>{opt}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        ))}
-
-        {score === null ? (
-          <View style={{ marginVertical: 20 }}>
-            <Button title="إنهاء وتسليم الاختبار" onPress={handleSubmitExam} color="#28a745" />
-          </View>
-        ) : (
-          <Text style={styles.scoreText}>النتيجة النهائية: {score} / {selectedExam.questions.length}</Text>
-        )}
-      </ScrollView>
-    );
-  }
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.header}>الاختبارات والواجبات المتاحة</Text>
-      {exams.length === 0 ? (
-        <Text style={{ textAlign: 'center', marginTop: 20 }}>لا توجد اختبارات متاحة حالياً لهذا المستوى.</Text>
+    <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.headerTitle}>{questionData.title}</Text>
+      
+      <View style={styles.card}>
+        <Text style={styles.questionText}>{questionData.question}</Text>
+        
+        {questionData.options.map((opt, index) => {
+          const isSelected = selectedAnswer === opt;
+          return (
+            <TouchableOpacity 
+              key={index} 
+              style={[styles.optionBtn, isSelected && styles.selectedOption]}
+              onPress={() => handleAnswer(opt)}
+            >
+              <Text style={[styles.optionText, isSelected && styles.selectedOptionText]}>
+                {opt}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {!submitted ? (
+        <TouchableOpacity style={styles.submitBtn} onPress={submitAnswer}>
+          <Text style={styles.submitBtnText}>إرسال الإجابة</Text>
+        </TouchableOpacity>
       ) : (
-        exams.map((exam) => (
-          <TouchableOpacity key={exam.id} style={styles.examCard} onPress={() => setSelectedExam(exam)}>
-            <Text style={styles.examTitle}>{exam.title}</Text>
-            <Text style={styles.examSub}>عدد الأسئلة: {exam.questions?.length || 0}</Text>
-          </TouchableOpacity>
-        ))
+        <Text style={styles.scoreText}>
+          {selectedAnswer === questionData.correctAnswer ? 'إجابة صحيحة! أحسنت 🌟' : 'إجابة خاطئة، حاول مرة أخرى ❌'}
+        </Text>
       )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16, backgroundColor: '#f5f5f5' },
-  header: { fontSize: 20, fontWeight: 'bold', textAlign: 'center', marginVertical: 15 },
-  examCard: { backgroundColor: '#fff', padding: 15, borderRadius: 8, marginVertical: 6, borderWidth: 1, borderColor: '#e0e0e0' },
-  examTitle: { fontSize: 16, fontWeight: 'bold' },
-  examSub: { color: '#666', marginTop: 5 },
-  questionBox: { backgroundColor: '#fff', padding: 12, borderRadius: 8, marginVertical: 8 },
-  questionText: { fontSize: 16, fontWeight: 'bold', marginBottom: 10 },
-  optionButton: { padding: 10, backgroundColor: '#eee', borderRadius: 5, marginVertical: 4 },
-  selectedOption: { backgroundColor: '#cce5ff', borderColor: '#007AFF', borderWidth: 1 },
-  optionText: { fontSize: 14 },
-  scoreText: { fontSize: 18, fontWeight: 'bold', color: 'green', textAlign: 'center', marginVertical: 20 }
+  container: { padding: 20, backgroundColor: '#0f172a', flexGrow: 1, justifyContent: 'center' },
+  headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#fff', textAlign: 'center', marginBottom: 20 },
+  card: { backgroundColor: '#1e293b', padding: 20, borderRadius: 12, borderWidth: 1, borderColor: '#334155', marginBottom: 20 },
+  questionText: { fontSize: 18, color: '#38bdf8', marginBottom: 20, fontWeight: 'bold', textAlign: 'right' },
+  optionBtn: { backgroundColor: '#0f172a', padding: 15, borderRadius: 8, marginBottom: 10, borderWidth: 1, borderColor: '#334155' },
+  selectedOption: { backgroundColor: '#0284c7', borderColor: '#38bdf8' },
+  optionText: { color: '#94a3b8', fontSize: 16, textAlign: 'right' },
+  selectedOptionText: { color: '#fff', fontWeight: 'bold' },
+  submitBtn: { backgroundColor: '#10b981', padding: 15, borderRadius: 8, alignItems: 'center' },
+  submitBtnText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  scoreText: { fontSize: 18, fontWeight: 'bold', color: '#10b981', textAlign: 'center', marginVertical: 20 }
 });
+export default StudentExamScreen;
