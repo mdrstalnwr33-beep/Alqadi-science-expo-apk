@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { 
+  StyleSheet, Text, View, TextInput, 
+  TouchableOpacity, Alert, ScrollView 
+} from 'react-native';
 import { db } from './firebaseConfig';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
-export default function CreateHomeworkScreen({ navigation, route }) {
+export default function CreateHomeworkScreen() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [studentLevel, setStudentLevel] = useState('الأول الثانوي');
@@ -21,53 +24,55 @@ export default function CreateHomeworkScreen({ navigation, route }) {
         studentLevel,
         createdAt: serverTimestamp(),
       });
-      Alert.alert('نجاح', 'تم نشر الواجب المدرسي بنجاح');
+      Alert.alert('نجاح', 'تم نشر الواجب بنجاح');
       setTitle('');
       setDescription('');
     } catch (error) {
       console.error(error);
-      Alert.alert('خطأ', 'فشل نشر الواجب، تأكد من الاتصال');
+      Alert.alert('خطأ', 'فشل نشر الواجب');
     }
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.headerTitle}>إدارة الواجبات المدرسية</Text>
+      <Text style={styles.headerTitle}>إدارة الواجبات</Text>
       
       <Text style={styles.label}>عنوان الواجب:</Text>
       <TextInput
         style={styles.input}
-        placeholder="مثال: واجب الدرس الأول في الكيمياء"
+        placeholder="أدخل العنوان..."
         placeholderTextColor="#888"
         value={title}
         onChangeText={setTitle}
       />
 
-      <Text style={styles.label}>نص أو تفاصيل الواجب:</Text>
+      <Text style={styles.label}>التفاصيل:</Text>
       <TextInput
         style={[styles.input, styles.textArea]}
-        placeholder="اكتب الأسئلة أو التفاصيل المطلوبة من الطلاب..."
+        placeholder="اكتب تفاصيل الواجب..."
         placeholderTextColor="#888"
         multiline
         value={description}
         onChangeText={setDescription}
       />
 
-      <Text style={styles.label}>المستوى الدراسي:</Text>
+      <Text style={styles.label}>المستوى:</Text>
       <View style={styles.row}>
-        {['الأول الثانوي', 'الثاني الثانوي', 'الثالث الثانوي'].map((level) => (
+        {['الأول الثانوي', 'الثاني الثانوي', 'الثالث الثانوي'].map((lvl) => (
           <TouchableOpacity
-            key={level}
-            style={[styles.levelBtn, studentLevel === level && styles.activeLevel]}
-            onPress={() => setStudentLevel(level)}
+            key={lvl}
+            style={[styles.levelBtn, studentLevel === lvl && styles.activeLevel]}
+            onPress={() => setStudentLevel(lvl)}
           >
-            <Text style={[styles.levelText, studentLevel === level && styles.activeLevelText]}>{level}</Text>
+            <Text style={[styles.levelText, studentLevel === lvl && styles.activeLevelText]}>
+              {lvl}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
 
       <TouchableOpacity style={styles.publishBtn} onPress={publishHomework}>
-        <Text style={styles.publishBtnText}>نشر الواجب المدرسي</Text>
+        <Text style={styles.publishBtnText}>نشر الواجب</Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -85,6 +90,6 @@ const styles = StyleSheet.create({
   levelText: { color: '#94a3b8', fontSize: 12 },
   activeLevelText: { color: '#fff', fontWeight: 'bold' },
   publishBtn: { backgroundColor: '#10b981', padding: 15, borderRadius: 8, alignItems: 'center', marginTop: 10 },
-  publishBtnText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  publishBtnText: { color: '#fff', fontSize: 18, fontWeight: 'bold' }
 });
           
