@@ -51,7 +51,10 @@ export default function App() {
   if (screen === 'about') return <About teacher={data.teacher} onBack={back} />;
   if (screen === 'studentHome') return <StudentHome session={session} level={level} onSubject={(id) => go('studentSubject', { subject: id })} onLogout={logout} notice={notice} />;
   if (screen === 'studentSubject') return <StudentSubject level={level} subject={subject} content={data.content[levelId]?.[subjectId]} onCategory={(id) => go('studentContent', { category: id })} onBack={back} />;
-  if (screen === 'studentContent') return <StudentContent category={category} subject={subject} level={level} items={currentItems} data={data} session={session} onBack={back} onDownload={download} onQuiz={(id) => go('quiz', { item: id })} />;
+    if (screen === 'studentExam') return <StudentExamScreen studentLevel={session?.level || 'first'} />;
+  if (screen === 'teacherExamCreate') return <CreateExamScreen />;
+                                                                                                                                  
+if (screen === 'studentContent') return <StudentContent category={category} subject={subject} level={level} items={currentItems} data={data} session={session} onBack={back} onDownload={download} onQuiz={(id) => go('quiz', { item: id })} />;
   if (screen === 'quiz') { const quiz = currentItems.find((x) => x.id === itemId); return <QuizScreen quiz={quiz} attempted={data.attempts[`${session.id}-${itemId}`]} onBack={back} onSubmit={(answers) => submitQuiz(quiz, answers)} />; }
   if (screen === 'teacherLevels') return <TeacherLevels onLevel={(id) => go('teacherLevel', { level: id })} onProfile={openProfile} onLogout={logout} />;
   if (screen === 'teacherProfile') return <TeacherProfile teacher={data.teacher} form={form} setForm={setForm} onSave={saveProfile} onPhoto={uploadTeacherPhoto} onBack={back} />;
