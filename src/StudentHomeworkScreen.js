@@ -1,0 +1,128 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import * as DocumentPicker from 'expo-document-picker';
+import { addDoc, collection, getDocs, query, serverTimestamp, where } from 'firebase/firestore';
+import { db } from './firebaseConfig';
+
+export default function StudentHomeworkScreen({ studentId, studentLevel = 'first', subject = 'chemistry' }) {
+  const [homeworks, setHomeworks] = useState([]);
+  const [answers, setAnswers] = useState({});
+  const [image, setImage] = useState(null);
+  const [submitted, setSubmitted] = useState({});
+  const [selected, setSelected] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = async () => {
+    try {
+      const snap = await getDocs(query(collection(db, 'homeworks'), where('studentLevel', '==', studentLevel), where('subject', '==', subject)));
+      setHomeworks(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      if (studentId) {
+        const submissions = await getDocs(query(collection(db, 'homeworkSubmissions'), where('studentId', '==', studentId)));
+        const map = {};
+        submissions.docs.forEach((d) => { const item = d.data(); map[item.homeworkId] = { id: d.id, ...item }; });
+        setSubmitted(map);
+      }
+    } catch (e) {
+      Alert.alert('تنبيه', 'تعذر تحميل الواجبات.');
+    }
+  };
+  useEffect(() => { load(); }, [studentId, studentLevel, subject]);
+
+  const current = useMemo(() => homeworks.find((x) => x.id === selected), [homeworks, selected]);
+
+  const pickImage = async () => {
+    const result = await DocumentPicker.getDocumentAsync({ type: 'image/*', copyToCacheDirectory: true });
+    if (!result.canceled) setImage(result.assets[0]);
+  };
+
+  const submit = async () => {
+    if (!current || submitted[current.id]) return Alert.alert('تم التسليم', 'لا يمكن إعادة إرسال هذا الواجب.');
+    const clean = (current.questions || []).map((q, i) => ({ questionId: q.id || `q-${i + 1}`, answer: (answers[i] || '').trim() }));
+    if (clean.some((x) => !x.answer) && !image) return Alert.alert('تنبيه', 'أجب عن الأسئلة أو أرفق صورة الحل.');
+    setBusy(true);
+    try {
+      await addDoc(collection(db, 'homeworkSubmissions'), {
+        homeworkId: current.id,
+        studentId,
+        studentLevel,
+        subject,
+        answers: clean,
+        imageUri: image?.uri || null,
+        imageName: image?.name || null,
+        status: 'pending_review',
+        score: null,
+        teacherComment: '',
+        submittedAt: serverTimestamp(),
+      });
+      Alert.alert('تم الإرسال', 'تم إرسال الواجب للمعلم، ولا يمكن إعادة إرساله.');
+      setSubmitted((old) => ({ ...old, [current.id]: { status: 'pending_review' } }));
+      setSelected(null);
+      setImage(null);
+      setAnswers({});
+    } catch (e) {
+      Alert.alert('خطأ', 'فشل إرسال الواجب.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (current) return (
+    <ScrollView style={styles.page} contentContainerStyle={styles.container}>
+      <Text style={styles.title}>{current.title}</Text>
+      <Text style={styles.meta}>{subject} • {studentLevel}</Text>
+      {current.dueDate ? <Text style={styles.due}>آخر موعد: {current.dueDate}</Text> : null}
+      {current.note ? <View style={styles.note}><Text style={styles.noteText}>{current.note}</Text></View> : null}
+      {(current.questions || []).map((q, i) => (
+        <View style={styles.card} key={q.id || i}>
+          <Text style={styles.question}>س{i + 1}: {q.text}</Text>
+          <TextInput style={styles.input} multiline value={answers[i] || ''} onChangeText={(v) => setAnswers((old) => ({ ...old, [i]: v }))} placeholder="اكتب إجابتك هنا..." placeholderTextColor="#8b9ab0" textAlign="right" />
+        </View>
+      ))}
+      <TouchableOpacity style={styles.attach} onPress={pickImage}><Text style={styles.attachText}>{image ? `تم اختيار: ${image.name}` : '📷 إرفاق صورة الحل من الدفتر'}</Text></TouchableOpacity>
+      {image?.uri ? <Image source={{ uri: image.uri }} style={styles.preview} /> : null}
+      <TouchableOpacity style={[styles.submit, busy && styles.disabled]} onPress={submit} disabled={busy}><Text style={styles.submitText}>{busy ? 'جارٍ الإرسال...' : 'إرسال الواجب للمعلم'}</Text></TouchableOpacity>
+      <TouchableOpacity style={styles.back} onPress={() => setSelected(null)}><Text style={styles.backText}>رجوع للواجبات</Text></TouchableOpacity>
+    </ScrollView>
+  );
+
+  return (
+    <ScrollView style={styles.page} contentContainerStyle={styles.container}>
+      <Text style={styles.title}>واجبات {subject}</Text>
+      {homeworks.length === 0 ? <Text style={styles.empty}>لا يوجد واجب منشور لهذا الصف والمادة.</Text> : homeworks.map((h) => {
+        const done = !!submitted[h.id];
+        return <View style={styles.card} key={h.id}>
+          <Text style={styles.homeworkTitle}>{h.title}</Text>
+          <Text style={styles.meta}>{h.note || 'واجب منزلي'}</Text>
+          {h.dueDate ? <Text style={styles.due}>آخر موعد: {h.dueDate}</Text> : null}
+          <TouchableOpacity style={[styles.open, done && styles.done]} disabled={done} onPress={() => setSelected(h.id)}><Text style={styles.openText}>{done ? '✓ تم التسليم — لا يمكن الإعادة' : 'فتح الواجب'}</Text></TouchableOpacity>
+        </View>;
+      })}
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  page: { flex: 1, backgroundColor: '#f4f7fb' },
+  container: { padding: 18, paddingBottom: 35 },
+  title: { color: '#12233f', fontSize: 23, fontWeight: '900', textAlign: 'right', marginBottom: 6 },
+  meta: { color: '#77869c', textAlign: 'right', marginBottom: 7 },
+  due: { color: '#b45309', textAlign: 'right', marginBottom: 10 },
+  card: { backgroundColor: '#fff', borderRadius: 16, padding: 15, marginBottom: 12 },
+  homeworkTitle: { color: '#12233f', fontSize: 17, fontWeight: '900', textAlign: 'right', marginBottom: 7 },
+  question: { color: '#12233f', fontWeight: '800', textAlign: 'right', lineHeight: 23, marginBottom: 12 },
+  input: { minHeight: 90, borderWidth: 1, borderColor: '#dbe3ed', borderRadius: 12, padding: 12, color: '#12233f', textAlignVertical: 'top' },
+  note: { backgroundColor: '#fff5d8', padding: 12, borderRadius: 12, marginVertical: 10 },
+  noteText: { color: '#8a5a00', textAlign: 'right', lineHeight: 21 },
+  attach: { backgroundColor: '#eaf0ff', borderRadius: 12, padding: 14, marginTop: 6 },
+  attachText: { color: '#1f5eff', fontWeight: '800', textAlign: 'center' },
+  preview: { width: '100%', height: 220, resizeMode: 'contain', marginTop: 10, borderRadius: 12 },
+  submit: { backgroundColor: '#0f9f76', borderRadius: 13, padding: 16, alignItems: 'center', marginTop: 14 },
+  submitText: { color: '#fff', fontWeight: '900', fontSize: 16 },
+  open: { backgroundColor: '#1f5eff', padding: 12, borderRadius: 10, marginTop: 10, alignItems: 'center' },
+  done: { backgroundColor: '#64748b' },
+  openText: { color: '#fff', fontWeight: '900' },
+  disabled: { opacity: 0.6 },
+  back: { padding: 15, alignItems: 'center' },
+  backText: { color: '#66758c', fontWeight: '800' },
+  empty: { backgroundColor: '#fff', padding: 25, borderRadius: 16, textAlign: 'center', color: '#77869c' },
+});
