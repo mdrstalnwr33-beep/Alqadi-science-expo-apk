@@ -1,6 +1,7 @@
-import CreateExamScreen from './CreateExamScreen';
-import StudentExamScreen from './StudentExamScreen';
-import React, { useEffect, useMemo, useState } from 'react';
+import CreateExamScreen from './src/CreateExamScreen';
+import StudentExamScreen from './src/StudentExamScreen';
+import CreateHomeworkScreen from './src/CreateHomeworkScreen';
+
 import { ActivityIndicator, Alert, BackHandler, Image, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as DocumentPicker from 'expo-document-picker';
