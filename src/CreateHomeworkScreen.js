@@ -87,3 +87,4 @@ const styles = StyleSheet.create({
   publishBtn: { backgroundColor: '#10b981', padding: 15, borderRadius: 8, alignItems: 'center', marginTop: 10 },
   publishBtnText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
 });
+          
