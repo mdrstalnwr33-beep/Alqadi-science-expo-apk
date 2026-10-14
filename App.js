@@ -1,5 +1,5 @@
-import CreateExamScreen from './src/CreateExamScreen';
-import StudentExamScreen from './src/StudentExamScreen';
+import CreateExamScreen from './CreateExamScreen';
+import StudentExamScreen from './StudentExamScreen';
 import CreateHomeworkScreen from './src/CreateHomeworkScreen';
 
 import { ActivityIndicator, Alert, BackHandler, Image, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
