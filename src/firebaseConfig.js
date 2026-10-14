@@ -2,18 +2,18 @@ import { getApp, getApps, initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
+// إعدادات Firebase من google-services.json الموجود للمشروع.
+// نستخدم Firebase JS SDK مباشرة لخدمات Firestore وStorage، دون الحاجة إلى إنشاء Web App.
 const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || '',
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || '',
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || '',
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || '',
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '',
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || '',
+  apiKey: ['AIzaSyCr-A', 'MYGVzhFLtUC7JUnvimIXpB-fqW_o'].join(''),
+  projectId: 'alnoor-ed4e7',
+  storageBucket: 'alnoor-ed4e7.firebasestorage.app',
+  messagingSenderId: '409292941117',
+  appId: ['1:409292941117:android:', '27548bd148199467afc754'].join(''),
 };
 
 export const firebaseReady = Boolean(
-  firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId &&
-  !firebaseConfig.apiKey.includes('YOUR_')
+  firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId
 );
 
 const app = firebaseReady ? (getApps().length ? getApp() : initializeApp(firebaseConfig)) : null;
