@@ -34,7 +34,12 @@ export default function StudentExamScreen({ studentLevel = 'first', studentId = 
         }
       } catch (error) {
         console.error('load exams', error);
-        if (mounted) setFirebaseError(true);
+        // عدم إسقاط الشاشة إذا كانت قواعد Firestore غير منشورة أو لا توجد المجموعة بعد.
+        if (mounted) {
+          setExams([]);
+          setAttemptedIds(new Set());
+          setFirebaseError(false);
+        }
       } finally {
         if (mounted) setLoading(false);
       }
