@@ -29,7 +29,7 @@ export default function StudentExamScreen({ studentLevel = 'first', studentId = 
           attemptSnap = await getDocs(query(collection(db, 'examAttempts'), where('studentId', '==', studentId)));
         }
         if (mounted) {
-          setExams(examSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((x) => x.active !== false && (!x.subject || x.subject === subject)));
+          setExams(examSnap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((x) => x && x.active !== false && Array.isArray(x.questions) && x.questions.length > 0 && (!x.subject || x.subject === subject)));
           setAttemptedIds(new Set(attemptSnap.docs.map((d) => d.data().examId).filter(Boolean)));
         }
       } catch (error) {
@@ -168,6 +168,7 @@ export default function StudentExamScreen({ studentLevel = 'first', studentId = 
         <Text style={styles.subtitle}>المستوى: {LEVELS[studentLevel] || studentLevel}{selected.duration ? ` | الزمن: ${selected.duration} دقيقة` : ''}</Text>
       </View>
       {questions.map((q, index) => {
+        if (!q || typeof q !== 'object') return null;
         const type = q.type === 'multiple' ? 'multiple_choice' : q.type;
         let answerContent;
         if (type === 'text') {
