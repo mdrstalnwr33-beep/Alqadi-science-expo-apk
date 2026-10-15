@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { collection, doc, getDocs, query, setDoc, where } from 'firebase/firestore';
+import { db, firebaseReady } from './src/firebaseConfig';
 
 const LEVELS = { first: 'الأول الثانوي', second: 'الثاني الثانوي', third: 'الثالث الثانوي' };
 const DATA_KEY = '@alqadi/data-v3';
-const ATTEMPTS_KEY = '@alqadi/exam-attempts-v1';
+const ATTEMPTS_KEY = '@alqadi/exam-attempts-v2';
 
 function normalizeQuestion(raw, index) {
   const q = raw && typeof raw === 'object' ? raw : {};
@@ -23,25 +25,42 @@ export default function StudentExamScreen({ studentLevel = 'first', studentId = 
   const [attempted, setAttempted] = useState({});
   const [selected, setSelected] = useState(null);
   const [answers, setAnswers] = useState({});
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let alive = true;
     (async () => {
       let items = Array.isArray(localItems) ? localItems : [];
+      let allAttempts = {};
       try {
         const raw = await AsyncStorage.getItem(DATA_KEY);
         const data = raw ? JSON.parse(raw) : null;
         const cached = data?.content?.[studentLevel]?.[subject]?.exams;
         if (Array.isArray(cached)) items = cached;
         const attemptsRaw = await AsyncStorage.getItem(ATTEMPTS_KEY);
-        const allAttempts = attemptsRaw ? JSON.parse(attemptsRaw) : {};
-        if (alive) setAttempted(allAttempts?.[studentId] || {});
+        allAttempts = attemptsRaw ? JSON.parse(attemptsRaw) : {};
       } catch (_) {}
+
+      if (firebaseReady && db) {
+        try {
+          const snap = await getDocs(query(collection(db, 'exams'), where('level', '==', studentLevel), where('subject', '==', subject), where('active', '==', true)));
+          if (!snap.empty) items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          const attemptSnap = await getDocs(query(collection(db, 'examAttempts'), where('studentId', '==', studentId), where('subject', '==', subject)));
+          const cloudAttempts = {};
+          attemptSnap.docs.forEach((d) => { const value = d.data(); if (value.examId) cloudAttempts[String(value.examId)] = true; });
+          allAttempts = { ...allAttempts, [studentId]: { ...(allAttempts[studentId] || {}), ...cloudAttempts } };
+        } catch (_) {}
+      }
+
       const normalized = items.map(normalizeExam).filter((x) => x.questions.length && x.active !== false);
-      if (alive) setExams(normalized);
+      if (alive) {
+        setAttempted(allAttempts?.[studentId] || {});
+        setExams(normalized);
+        setLoading(false);
+      }
     })();
     return () => { alive = false; };
-  }, [studentLevel, studentId, subject]);
+  }, [studentLevel, studentId, subject, localItems]);
 
   const choose = (index, value) => setAnswers((old) => ({ ...old, [index]: value }));
 
@@ -52,19 +71,23 @@ export default function StudentExamScreen({ studentLevel = 'first', studentId = 
     if (questions.some((q, i) => q.type !== 'text' && !answers[i])) return Alert.alert('تنبيه', 'أجب عن جميع الأسئلة الموضوعية.');
     let score = 0;
     questions.forEach((q, i) => { if (q.type !== 'text' && String(answers[i]) === String(q.answer)) score += 1; });
+    const hasText = questions.some((q) => q.type === 'text');
     const next = { ...attempted, [selected.id]: true };
     setAttempted(next);
+    const attempt = { id: `${studentId}_${selected.id}`, studentId, examId: selected.id, title: selected.title, subject, studentLevel, answers, autoScore: score, total: questions.length, textPending: hasText, submittedAt: Date.now(), status: hasText ? 'pending_review' : 'submitted' };
     try {
       const raw = await AsyncStorage.getItem(ATTEMPTS_KEY);
       const all = raw ? JSON.parse(raw) : {};
       all[studentId] = next;
       await AsyncStorage.setItem(ATTEMPTS_KEY, JSON.stringify(all));
+      if (firebaseReady && db) await setDoc(doc(db, 'examAttempts', attempt.id), attempt, { merge: true });
     } catch (_) {}
-    Alert.alert('تم التسليم', `درجتك التلقائية: ${score}/${questions.length}`);
+    Alert.alert('تم التسليم', hasText ? `تم حفظ الاختبار. الدرجة التلقائية: ${score}/${questions.length}\nالإجابة النصية بانتظار مراجعة المعلم.` : `درجتك التلقائية: ${score}/${questions.length}`);
     setSelected(null);
     setAnswers({});
   };
 
+  if (loading) return <View style={styles.loading}><Text style={styles.loadingText}>جاري تحميل الاختبارات...</Text></View>;
   if (selected) return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.headerRow}><TouchableOpacity onPress={() => setSelected(null)}><Text style={styles.back}>رجوع</Text></TouchableOpacity><View style={styles.headerCopy}><Text style={styles.title}>{selected.title}</Text><Text style={styles.meta}>{LEVELS[studentLevel] || studentLevel} • {subject}</Text></View></View>
@@ -81,5 +104,6 @@ export default function StudentExamScreen({ studentLevel = 'first', studentId = 
 }
 
 const styles = StyleSheet.create({
+  loading:{flex:1,justifyContent:'center',alignItems:'center',backgroundColor:'#f4f7fb'},loadingText:{color:'#475569',fontWeight:'800'},
   container:{flexGrow:1,padding:18,backgroundColor:'#f4f7fb'},headerRow:{flexDirection:'row-reverse',alignItems:'center',marginBottom:14},headerCopy:{flex:1,alignItems:'flex-end'},title:{color:'#12233f',fontSize:22,fontWeight:'900',textAlign:'right'},meta:{color:'#77869c',textAlign:'right',marginTop:4},back:{color:'#1f5eff',fontWeight:'900',padding:10},card:{backgroundColor:'#fff',borderRadius:16,padding:15,marginBottom:12},examTitle:{color:'#12233f',fontSize:17,fontWeight:'900',textAlign:'right'},question:{color:'#12233f',fontSize:17,fontWeight:'900',textAlign:'right',lineHeight:24,marginBottom:12},option:{borderWidth:1,borderColor:'#dbe3ed',borderRadius:10,padding:13,marginBottom:8},selected:{borderColor:'#1f5eff',backgroundColor:'#eaf0ff'},optionText:{color:'#12233f',textAlign:'right',fontSize:15},textInput:{minHeight:100,borderWidth:1,borderColor:'#dbe3ed',borderRadius:10,padding:12,color:'#12233f',textAlignVertical:'top'},open:{backgroundColor:'#dc4163',padding:13,borderRadius:10,marginTop:10,alignItems:'center'},disabled:{backgroundColor:'#94a3b8'},openText:{color:'#fff',fontWeight:'900'},submit:{backgroundColor:'#0f9f76',padding:16,borderRadius:12,alignItems:'center'},submitText:{color:'#fff',fontWeight:'900',fontSize:16},notice:{backgroundColor:'#fff5d8',color:'#8a5a00',padding:14,borderRadius:12,textAlign:'right'}
 });
