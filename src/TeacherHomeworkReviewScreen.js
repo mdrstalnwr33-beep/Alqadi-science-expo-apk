@@ -1,7 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { collection, getDocs, query, updateDoc, doc, where } from 'firebase/firestore';
-import { db } from './firebaseConfig';
+import { db, firebaseReady } from './firebaseConfig';
+
+const normalizeAnswers = (answers) => {
+  if (Array.isArray(answers)) return answers;
+  if (answers && typeof answers === 'object') return Object.keys(answers).sort((a, b) => Number(a) - Number(b)).map((key, index) => ({ questionId: String(key), answer: answers[key], index }));
+  return [];
+};
 
 export default function TeacherHomeworkReviewScreen({ studentLevel, subject }) {
   const [items, setItems] = useState([]);
@@ -9,9 +15,13 @@ export default function TeacherHomeworkReviewScreen({ studentLevel, subject }) {
   const [drafts, setDrafts] = useState({});
 
   const load = async () => {
+    if (!firebaseReady || !db) {
+      Alert.alert('تنبيه', 'Firebase غير متاح حاليًا.');
+      return;
+    }
     try {
       const snap = await getDocs(query(collection(db, 'homeworkSubmissions'), where('studentLevel', '==', studentLevel), where('subject', '==', subject)));
-      setItems(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      setItems(snap.docs.map((d) => ({ id: d.id, ...d.data(), answers: normalizeAnswers(d.data().answers) })));
     } catch (e) { Alert.alert('تنبيه', 'تعذر تحميل تسليمات الواجبات.'); }
   };
   useEffect(() => { load(); }, [studentLevel, subject]);
@@ -19,6 +29,7 @@ export default function TeacherHomeworkReviewScreen({ studentLevel, subject }) {
   const review = async (item) => {
     const draft = drafts[item.id] || {};
     if (draft.score === undefined || draft.score === '') return Alert.alert('تنبيه', 'أدخل الدرجة أولًا.');
+    if (!firebaseReady || !db) return Alert.alert('تنبيه', 'Firebase غير متاح حاليًا.');
     setBusy(true);
     try {
       await updateDoc(doc(db, 'homeworkSubmissions', item.id), { score: Number(draft.score), teacherComment: draft.comment || '', status: 'reviewed', reviewedAt: new Date() });
@@ -36,7 +47,7 @@ export default function TeacherHomeworkReviewScreen({ studentLevel, subject }) {
       return <View style={styles.card} key={item.id}>
         <Text style={styles.heading}>الطالب: {item.studentId}</Text>
         <Text style={styles.status}>الحالة: {item.status === 'reviewed' ? 'تمت المراجعة' : 'بانتظار المراجعة'}</Text>
-        {(item.answers || []).map((a, i) => <View style={styles.answer} key={a.questionId || i}><Text style={styles.q}>السؤال {i + 1}</Text><Text style={styles.answerText}>{a.answer || '—'}</Text></View>)}
+        {normalizeAnswers(item.answers).map((a, i) => <View style={styles.answer} key={a.questionId || i}><Text style={styles.q}>السؤال {i + 1}</Text><Text style={styles.answerText}>{a.answer || '—'}</Text></View>)}
         {item.imageUri ? <Text style={styles.attachment}>📷 مرفق: {item.imageName || 'صورة الحل'}</Text> : null}
         <TextInput style={styles.input} keyboardType="numeric" value={draft.score !== undefined ? String(draft.score) : item.score == null ? '' : String(item.score)} onChangeText={(v) => setDrafts((old) => ({ ...old, [item.id]: { ...old[item.id], score: v } }))} placeholder="الدرجة" placeholderTextColor="#8b9ab0" textAlign="right" />
         <TextInput style={[styles.input, styles.comment]} multiline value={draft.comment !== undefined ? draft.comment : item.teacherComment || ''} onChangeText={(v) => setDrafts((old) => ({ ...old, [item.id]: { ...old[item.id], comment: v } }))} placeholder="ملاحظة المعلم" placeholderTextColor="#8b9ab0" textAlign="right" />
