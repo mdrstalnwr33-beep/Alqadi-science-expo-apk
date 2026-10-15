@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main ]
 permissions:
-  contents: read
+  contents: write
 env:
   CI: 1
   EXPO_PUBLIC_TEACHER_CODE: ${{ secrets.TEACHER_CODE }}
@@ -15,6 +15,73 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Harden student content rendering
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path('App.js')
+          s = p.read_text(encoding='utf-8')
+          new_student = r'''function StudentContent({category,subject,level,items,data,session,onBack,onDownload,onQuiz}){
+            const safeCategory = category || CATEGORIES[0];
+            const safeSubject = subject || SUBJECTS[0];
+            const safeLevel = level || LEVELS[0];
+            const safeItems = Array.isArray(items) ? items.filter(x => x && typeof x === 'object') : [];
+            const grades = Object.values(data?.grades && typeof data.grades === 'object' ? data.grades : {}).filter(g => g && typeof g === 'object' && g.studentId === session?.id);
+            const safeText = (value, fallback='') => {
+              if (value === null || value === undefined) return fallback;
+              if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value);
+              try { return JSON.stringify(value); } catch (_) { return fallback; }
+            };
+            return <SafeAreaView style={styles.container}>
+              <StatusBar barStyle="light-content" backgroundColor="#12233f"/>
+              <View style={styles.header}>
+                {onBack ? <TouchableOpacity style={styles.backHeader} onPress={onBack}><Text style={styles.backHeaderText}>رجوع</Text></TouchableOpacity> : null}
+                <Text style={styles.headerTitle}>{safeText(safeCategory.title,'المحتوى')}</Text>
+                <Text style={styles.headerSub}>{safeText(safeSubject.title)} • {safeText(safeLevel.title)}</Text>
+              </View>
+              <ScrollView contentContainerStyle={styles.content}>
+                {safeCategory.id === 'top' ? <TopList names={safeItems.length ? safeItems.map(x => safeText(x?.title, 'طالب')) : ['سيتم إعلان الأوائل بعد اعتماد الدرجات']}/>
+                : safeCategory.id === 'grades' ? (grades.length ? grades.map((g,i) => <View style={styles.materialRow} key={safeText(g.id, `grade-${i}`)}><Text style={styles.materialTitle}>{safeText(g.title,'نتيجة')}</Text><Text style={styles.materialMeta}>{safeText(g.score,'0')}/{safeText(g.total,'0')} {g.pendingText ? '• المقالية قيد المراجعة' : ''}</Text></View>) : <Empty text="ستظهر درجاتك بعد تسليم الاختبارات والواجبات."/>)
+                : safeItems.length ? safeItems.map((item,index) => {
+                    const id = safeText(item?.id, `item-${index}`);
+                    const title = safeText(item?.title, 'محتوى دراسي');
+                    const detail = safeText(item?.detail, 'محتوى محفوظ للأوفلاين');
+                    const body = safeText(item?.body, '');
+                    const type = safeText(item?.type, 'text');
+                    const hasUrl = typeof item?.url === 'string' && item.url.length > 0;
+                    return <View style={styles.materialRow} key={id}>
+                      <View style={styles.materialCopy}>
+                        <Text style={styles.materialTitle}>{title}</Text>
+                        <Text style={styles.materialMeta}>{detail}</Text>
+                        {body && type !== 'quiz' ? <Text style={styles.materialBody}>{body}</Text> : null}
+                      </View>
+                      {type === 'quiz' ? <TouchableOpacity style={styles.downloadButton} onPress={() => onQuiz && onQuiz(item.id)}><Text style={styles.downloadText}>بدء</Text></TouchableOpacity>
+                        : hasUrl ? <TouchableOpacity style={styles.downloadButton} onPress={() => onDownload && onDownload(item)}><Text style={styles.downloadText}>تنزيل</Text></TouchableOpacity>
+                        : <View style={styles.downloadButton}><Text style={styles.downloadText}>قراءة</Text></View>}
+                    </View>;
+                  })
+                : <Empty text="لا يوجد محتوى منشور بعد."/>}
+              </ScrollView>
+            </SafeAreaView>;
+          }
+          '''
+          s, n = re.subn(r'function StudentContent\([\s\S]*?\nfunction QuizScreen', new_student + '\nfunction QuizScreen', s, count=1)
+          if n != 1:
+              raise SystemExit('StudentContent function not found')
+          s = s.replace("function TopList({names}){return <View>{names.map((n,i)=><View style={styles.topRow} key={`${n}-${i}`}><Text style={styles.rank}>{i+1}</Text><Text style={styles.topName}>{n}</Text><Text>{['🥇','🥈','🥉'][i]||'★'}</Text></View>)}</View>}", "function TopList({names}){const safe=Array.isArray(names)?names:[];return <View>{safe.map((n,i)=><View style={styles.topRow} key={`${String(n)}-${i}`}><Text style={styles.rank}>{i+1}</Text><Text style={styles.topName}>{String(n??'طالب')}</Text><Text>{['🥇','🥈','🥉'][i]||'★'}</Text></View>)}</View>}")
+          p.write_text(s, encoding='utf-8')
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if ! git diff --quiet -- App.js; then
+            git add App.js
+            git commit -m "إصلاح عرض محتوى الدروس والكتب للطلاب"
+            git push
+          fi
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
