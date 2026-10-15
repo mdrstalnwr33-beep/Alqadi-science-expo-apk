@@ -10,7 +10,7 @@ env:
   EXPO_PUBLIC_TEACHER_CODE: ${{ secrets.TEACHER_CODE }}
 jobs:
   build:
-    name: Build signed Android APK
+    name: Build Android APK
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -22,8 +22,8 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Generate Android project
-        run: npx expo prebuild --platform android --no-install
+      - name: Generate clean Android project
+        run: npx expo prebuild --platform android --clean --no-install
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
