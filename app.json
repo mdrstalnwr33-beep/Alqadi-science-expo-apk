@@ -1,29 +1,21 @@
 {
   "expo": {
-    "name": "تطبيق القاضي للعلوم",
-    "slug": "alqadi-science-app",
-    "version": "1.0.5",
+    "name": "منارة العلوم",
+    "slug": "noura-science-app",
+    "version": "0.1.0",
     "orientation": "portrait",
-    "icon": "./app-profile.jpg",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./app-profile.jpg",
-      "resizeMode": "contain",
-      "backgroundColor": "#1E3A8A"
-    },
-    "ios": {
-      "supportsTablet": true
-    },
+    "scheme": "nourascience",
+    "plugins": ["expo-router"],
     "android": {
-      "package": "com.mohamedalqadi.science",
-      "versionCode": 6,
-      "adaptiveIcon": {
-        "foregroundImage": "./app-profile.jpg",
-        "backgroundColor": "#1E3A8A"
-      }
+      "package": "com.alqadi.nourascience",
+      "versionCode": 1
     },
     "web": {
       "bundler": "metro"
+    },
+    "experiments": {
+      "typedRoutes": true
     }
   }
 }

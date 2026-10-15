@@ -1,28 +1,27 @@
 {
-  "name": "alqadi-science-app",
-  "version": "1.0.0",
-  "main": "node_modules/expo/AppEntry.js",
+  "name": "noura-science-app",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "android": "expo run:android",
+    "web": "expo start --web",
+    "lint": "expo lint",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@expo/metro-runtime": "~3.2.3",
-    "@react-native-async-storage/async-storage": "^1.23.1",
-    "expo": "~51.0.0",
-    "expo-document-picker": "~12.0.2",
-    "expo-file-system": "~17.0.1",
-    "expo-status-bar": "~1.12.1",
-    "firebase": "^10.12.0",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
-    "react-native": "0.74.5",
-    "react-native-web": "~0.19.10"
+    "expo": "~57.0.25",
+    "expo-linking": "~57.0.11",
+    "expo-router": "~57.0.23",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.20.0"
-  },
-  "private": true
+    "@types/react": "~19.2.2",
+    "typescript": "~6.0.3"
+  }
 }
