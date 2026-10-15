@@ -2,7 +2,7 @@
   "expo": {
     "name": "تطبيق القاضي للعلوم",
     "slug": "alqadi-science-app",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "orientation": "portrait",
     "icon": "./app-profile.jpg",
     "userInterfaceStyle": "light",
@@ -15,8 +15,8 @@
       "supportsTablet": true
     },
     "android": {
-      "package": "com.alqadi.scienceapp",
-      "versionCode": 5,
+      "package": "com.mohamedalqadi.science",
+      "versionCode": 6,
       "adaptiveIcon": {
         "foregroundImage": "./app-profile.jpg",
         "backgroundColor": "#1E3A8A"
