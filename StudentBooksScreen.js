@@ -1,61 +1,38 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import * as FileSystem from 'expo-file-system';
 
 export default function StudentBooksScreen({ level = 'first', subject = 'chemistry', localItems = [], onBack }) {
-  const safeLocal = useMemo(
-    () => (Array.isArray(localItems) ? localItems : []).filter((x) => x && typeof x === 'object'),
-    [localItems],
-  );
-  const [items, setItems] = useState(safeLocal);
+  const items = Array.isArray(localItems) ? localItems.filter((x) => x && typeof x === 'object') : [];
 
-  // هذه الصفحة محلية عمداً: فشل Firebase لا يمكن أن يمنع فتح الكتب والملازم.
-  useEffect(() => {
-    setItems(safeLocal);
-  }, [safeLocal]);
-
-  const download = async (item) => {
-    if (!item?.url) {
-      Alert.alert('الكتاب', 'هذا محتوى نصي محفوظ داخل التطبيق ويمكن قراءته دون اتصال.');
+  const openItem = (item) => {
+    if (item?.url) {
+      Alert.alert('الملف', 'هذا ملف PDF سحابي. سيتم فتحه بعد توفر اتصال الإنترنت.');
       return;
     }
-    try {
-      const target = `${FileSystem.documentDirectory}${String(item.id || Date.now())}.pdf`;
-      await FileSystem.downloadAsync(item.url, target);
-      Alert.alert('تم التنزيل', 'تم حفظ الكتاب على الهاتف ويمكن فتحه دون اتصال.');
-    } catch (_) {
-      Alert.alert('تعذر التنزيل', 'تحقق من الإنترنت ثم حاول مرة أخرى.');
-    }
+    Alert.alert('الكتاب', String(item?.body || 'هذا المحتوى محفوظ داخل التطبيق ويمكن قراءته دون اتصال.'));
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.headerRow}>
-        <TouchableOpacity onPress={onBack} style={styles.back}>
-          <Text style={styles.backText}>رجوع</Text>
-        </TouchableOpacity>
+        <TouchableOpacity onPress={onBack} style={styles.back}><Text style={styles.backText}>رجوع</Text></TouchableOpacity>
         <View style={styles.headerCopy}>
           <Text style={styles.title}>الكتب والملازم</Text>
           <Text style={styles.meta}>{level} • {subject}</Text>
         </View>
       </View>
-
       {items.length ? items.map((item, index) => (
-        <View style={styles.card} key={item.id || `book-${index}`}>
+        <View style={styles.card} key={String(item.id || `book-${index}`)}>
           <View style={styles.copy}>
             <Text style={styles.bookTitle}>{String(item.title || 'كتاب دراسي')}</Text>
             <Text style={styles.detail}>{String(item.detail || (item.url ? 'ملف PDF' : 'محتوى نصي'))}</Text>
             {item.body ? <Text style={styles.body}>{String(item.body)}</Text> : null}
           </View>
-          <TouchableOpacity style={styles.button} onPress={() => download(item)}>
-            <Text style={styles.buttonText}>{item.url ? 'تنزيل PDF' : 'قراءة'}</Text>
+          <TouchableOpacity style={styles.button} onPress={() => openItem(item)}>
+            <Text style={styles.buttonText}>{item.url ? 'فتح' : 'قراءة'}</Text>
           </TouchableOpacity>
         </View>
-      )) : (
-        <View style={styles.empty}>
-          <Text style={styles.emptyText}>لا توجد كتب أو ملازم منشورة لهذا المستوى والمادة حاليًا.</Text>
-        </View>
-      )}
+      )) : <View style={styles.empty}><Text style={styles.emptyText}>لا توجد كتب أو ملازم منشورة لهذا المستوى والمادة حاليًا.</Text></View>}
     </ScrollView>
   );
 }
