@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import CreateExamScreen from './CreateExamScreen';
 import StudentExamScreen from './StudentExamScreen';
+import StudentBooksScreen from './StudentBooksScreen';
 import CreateHomeworkScreen from './src/CreateHomeworkScreen';
 import StudentHomeworkScreen from './src/StudentHomeworkScreen';
 import TeacherHomeworkReviewScreen from './src/TeacherHomeworkReviewScreen';
@@ -54,10 +55,11 @@ function App(){
  if(screen==='studentHome')return <StudentHome session={session} level={level||LEVELS[0]} onSubject={id=>go('studentSubject',{level:levelId||'first',subject:id})} onLogout={logout} notice={notice}/>;
  if(screen==='studentSubject')return <StudentSubject level={level||LEVELS[0]} subject={subject||SUBJECTS[0]} content={data.content[levelId]?.[subjectId]} onCategory={id=>{if(id==='homework')go('studentHomework');else if(id==='exams')go('studentExam');else go('studentContent',{category:id});}} onBack={back}/>;
  if(screen==='studentHomework')return <StudentHomeworkScreen studentId={session?.id} studentLevel={session?.level||levelId||'first'} subject={subjectId||'chemistry'}/>;
- if(screen==='studentExam')return <StudentExamScreen studentId={session?.id||'guest'} studentLevel={session?.level||'first'} subject={subjectId||'chemistry'}/>;
+ if(screen==='studentExam')return <StudentExamScreen studentId={session?.id||'guest'} studentLevel={session?.level||'first'} subject={subjectId||'chemistry'} onBack={back}/>;
  if(screen==='teacherExamCreate')return <CreateExamScreen/>;
  if(screen==='teacherHomeworkCreate')return <CreateHomeworkScreen subject={subjectId||'chemistry'} studentLevel={levelId||'first'}/>;
  if(screen==='teacherHomeworkReview')return <TeacherHomeworkReviewScreen subject={subjectId||'chemistry'} studentLevel={levelId||'first'}/>;
+ if(screen==='studentContent'&&categoryId==='books')return <StudentBooksScreen level={levelId||'first'} subject={subjectId||'chemistry'} localItems={currentItems} onBack={back}/>;
  if(screen==='studentContent')return <StudentContent category={category||CATEGORIES[0]} subject={subject||SUBJECTS[0]} level={level||LEVELS[0]} items={currentItems} data={data} session={session} onBack={back} onDownload={download} onQuiz={id=>go('quiz',{item:id})}/>;
  if(screen==='quiz'){const quiz=currentItems.find(x=>x.id===itemId);return <QuizScreen quiz={quiz} attempted={Boolean(data.attempts?.[`${session?.id}-${itemId}`])} onBack={back} onSubmit={answers=>submitQuiz(quiz,answers)}/>;}
  if(screen==='teacherLevels')return <TeacherLevels onLevel={id=>go('teacherLevel',{level:id})} onProfile={openProfile} onLogout={logout}/>;
