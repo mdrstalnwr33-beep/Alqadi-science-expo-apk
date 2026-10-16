@@ -1,9 +1,17 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Temporary baseline: deploy stricter role-based rules before public release.
-    match /publicContent/{document=**} { allow read: if true; allow write: if false; }
-    match /content/{document=**} { allow read: if true; allow write: if false; }
+    // The app currently authenticates by school codes, so these collections must be readable by the app.
+    // Replace with Firebase Authentication role checks before public multi-school deployment.
+    match /lessons/{id} { allow read, write: if true; }
+    match /homework/{id} { allow read, write: if true; }
+    match /exams/{id} { allow read, write: if true; }
+    match /bookLinks/{id} { allow read, write: if true; }
+    match /notifications/{id} { allow read, write: if true; }
+    match /examAttempts/{id} { allow read, write: if true; }
+    match /homeworkSubmissions/{id} { allow read, write: if true; }
+    match /content/{id} { allow read: if true; allow write: if false; }
+    match /publicContent/{id} { allow read: if true; allow write: if true; }
     match /{document=**} { allow read, write: if false; }
   }
 }

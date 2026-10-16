@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput } from 'react-native';
 import { lessons as initialLessons } from '../src/data';
 import { readJson, writeJson } from '../src/storage';
+import { publishLesson, publishNotice } from '../src/contentCloud';
 
 export default function CreateLessonScreen(){
  const p=useLocalSearchParams<{subject?:string;grade?:string}>();
@@ -14,7 +15,7 @@ export default function CreateLessonScreen(){
   const item={id:`custom-lesson-${Date.now()}`,title:title.trim(),subject:p.subject||'الكيمياء',grade:p.grade||'الأول الثانوي',date:new Date().toLocaleDateString('ar-YE'),body:body.trim()};
   await writeJson(key,[...current,item]);
   await writeJson('custom-lessons-all',[...await readJson<any[]>('custom-lessons-all',[]),item]);
-  Alert.alert('تم الحفظ','تمت إضافة الدرس لهذا الصف والمادة.'); router.back();
+  try { const summary=body.trim().split(/[.!؟\n]/).filter(Boolean).slice(0,2).join(' • '); await publishLesson({...item,summary,createdAt:Date.now()}); await publishNotice({id:`notice-${item.id}`,grade:item.grade,title:'درس جديد',body:item.title,createdAt:Date.now()}); Alert.alert('تم النشر السحابي','وصل الدرس إلى طلاب الصف.'); } catch { Alert.alert('حُفظ محليًا','تعذر الاتصال بالسحابة؛ سيبقى الدرس على هذا الجهاز حتى إعادة المحاولة.'); } router.back();
  };
  return <ScrollView contentContainerStyle={styles.page}><Text style={styles.back} onPress={()=>router.back()}>رجوع</Text><Text style={styles.title}>إضافة درس جديد</Text><Text style={styles.scope}>{p.grade} • {p.subject}</Text><Text style={styles.label}>عنوان الدرس</Text><TextInput value={title} onChangeText={setTitle} style={styles.input} placeholder="مثال: قوانين الحركة" textAlign="right"/><Text style={styles.label}>محتوى الدرس</Text><TextInput value={body} onChangeText={setBody} style={[styles.input,styles.area]} placeholder="اكتب شرح الدرس والأسئلة والملاحظات..." multiline textAlign="right" textAlignVertical="top"/><Pressable style={styles.button} onPress={save}><Text style={styles.buttonText}>حفظ ونشر الدرس</Text></Pressable></ScrollView>
 }

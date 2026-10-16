@@ -1,22 +1,26 @@
-import { collection, doc, getDocs, query, setDoc, where } from 'firebase/firestore';
-import { getDownloadURL, getStorage, ref, uploadBytes } from 'firebase/storage';
-import { firebaseApp, db } from './firebase';
+import { collection, doc, getDocs, orderBy, query, setDoc, where } from 'firebase/firestore';
+import { db } from './firebase';
 
-export type CloudPdf = { id:string; name:string; url:string; grade:string; subject:string; createdAt:number; size?:number };
-const storage=getStorage(firebaseApp);
+export type CloudLesson={id:string;title:string;body:string;summary?:string;subject:string;grade:string;date:string;createdAt:number};
+export type CloudBookLink={id:string;name:string;url:string;grade:string;subject:string;createdAt:number};
+export type CloudNotice={id:string;studentCode?:string;grade?:string;title:string;body:string;createdAt:number;read?:boolean};
 
-export async function uploadCloudPdf(uri:string,name:string,grade:string,subject:string,size?:number):Promise<CloudPdf>{
-  const response=await fetch(uri); const blob=await response.blob();
-  const id=`${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
-  const fileRef=ref(storage,`books/${grade}/${subject}/${id}-${name.replace(/[^\w\-.\u0600-\u06ff ]/g,'_')}`);
-  await uploadBytes(fileRef,blob,{contentType:'application/pdf'});
-  const url=await getDownloadURL(fileRef);
-  const item:CloudPdf={id,name,url,grade,subject,createdAt:Date.now(),size};
-  await setDoc(doc(db,'content',id),{...item,type:'pdf'});
-  return item;
-}
-
-export async function getCloudPdfs(grade:string,subject:string):Promise<CloudPdf[]>{
-  const snap=await getDocs(query(collection(db,'content'),where('type','==','pdf'),where('grade','==',grade),where('subject','==',subject)));
-  return snap.docs.map(d=>d.data() as CloudPdf).sort((a,b)=>b.createdAt-a.createdAt);
+const byScope=(name:string,grade:string,subject:string)=>query(collection(db,name),where('grade','==',grade),where('subject','==',subject));
+const newest=<T extends {createdAt:number}>(items:T[])=>items.sort((a,b)=>b.createdAt-a.createdAt);
+export async function publishLesson(item:CloudLesson){await setDoc(doc(db,'lessons',item.id),item);return item;}
+export async function getCloudLessons(grade:string,subject:string){const s=await getDocs(byScope('lessons',grade,subject));return newest(s.docs.map(x=>x.data() as CloudLesson));}
+export async function publishHomework(item:any){await setDoc(doc(db,'homework',item.id),item);return item;}
+export async function getCloudHomework(grade:string,subject:string){const s=await getDocs(byScope('homework',grade,subject));return newest(s.docs.map(x=>x.data() as any));}
+export async function publishExam(item:any){await setDoc(doc(db,'exams',item.id),item);return item;}
+export async function getCloudExams(grade:string,subject:string){const s=await getDocs(byScope('exams',grade,subject));return newest(s.docs.map(x=>x.data() as any));}
+export async function saveBookLink(item:CloudBookLink){await setDoc(doc(db,'bookLinks',item.id),item);return item;}
+export async function getBookLinks(grade:string,subject:string){const s=await getDocs(byScope('bookLinks',grade,subject));return newest(s.docs.map(x=>x.data() as CloudBookLink));}
+export async function publishNotice(item:CloudNotice){await setDoc(doc(db,'notifications',item.id),item);}
+export async function getStudentNotices(code:string,grade:string){
+ const [student,gradeSnap]=await Promise.all([
+  getDocs(query(collection(db,'notifications'),where('studentCode','==',code),orderBy('createdAt','desc'))),
+  getDocs(query(collection(db,'notifications'),where('grade','==',grade),orderBy('createdAt','desc'))),
+ ]);
+ const all=[...student.docs,...gradeSnap.docs].map(x=>x.data() as CloudNotice);
+ return Array.from(new Map(all.map(x=>[x.id,x])).values()).sort((a,b)=>b.createdAt-a.createdAt);
 }

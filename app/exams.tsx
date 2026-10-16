@@ -3,13 +3,14 @@ import { useEffect, useState } from 'react';
 import { Text } from 'react-native';
 import { exams } from '../src/data';
 import { getCustomExams, type CustomExam } from '../src/assessmentStore';
+import { getCloudExams } from '../src/contentCloud';
 import { Action, Card, Page, Section, C } from '../src/ui';
 
 export default function ExamsScreen(){
  const p=useLocalSearchParams<{role?:string;name?:string;grade?:string;subject?:string}>();
- const [custom,setCustom]=useState<CustomExam[]>([]);
- useEffect(()=>{getCustomExams().then(setCustom);},[]);
- const list=[...exams,...custom].filter(e=>(!p.subject||e.subject===p.subject)&&(!p.grade||e.grade===p.grade));
+ const [custom,setCustom]=useState<CustomExam[]>([]); const [cloud,setCloud]=useState<CustomExam[]>([]);
+ useEffect(()=>{getCustomExams().then(setCustom); if(p.grade&&p.subject)getCloudExams(p.grade,p.subject).then(setCloud).catch(()=>setCloud([]));},[p.grade,p.subject]);
+ const list=[...exams,...custom,...cloud].filter(e=>(!p.subject||e.subject===p.subject)&&(!p.grade||e.grade===p.grade));
  const teacher=p.role==='teacher';
  return <Page title="الاختبارات الشهرية" subtitle={teacher?'إدارة الاختبارات ونتائج الطلاب':'اختبر فهمك للمادة'} onBack={()=>router.back()}>
    {teacher&&<Action label="إنشاء اختبار جديد وإضافة أسئلة" icon="＋" onPress={()=>router.push({pathname:'/create-exam',params:{grade:p.grade,subject:p.subject}})} />}

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Alert, Pressable, Text, TextInput, View } from 'react-native';
 import { grades, subjects, type Grade, type Subject } from '../src/data';
 import { getCustomHomework, saveCustomHomework } from '../src/assessmentStore';
+import { publishHomework, publishNotice } from '../src/contentCloud';
 import { Action, Card, Page, Section, C } from '../src/ui';
 
 export default function CreateHomeworkScreen() {
@@ -21,8 +22,9 @@ export default function CreateHomeworkScreen() {
     const clean = questions.map(q=>q.trim()).filter(Boolean);
     if (!clean.length) return Alert.alert('أسئلة ناقصة','أضف سؤالًا واحدًا على الأقل.');
     const current = await getCustomHomework();
-    await saveCustomHomework([...current,{id:`custom-hw-${Date.now()}`,title:title.trim(),subject,grade,due:due.trim()||'غير محدد',note:note.trim()||'أجب عن جميع الأسئلة بوضوح.',questions:clean,createdAt:Date.now()}]);
-    Alert.alert('تم النشر','تم إنشاء الواجب وإضافة جميع الأسئلة.');
+    const item={id:`custom-hw-${Date.now()}`,title:title.trim(),subject,grade,due:due.trim()||'غير محدد',note:note.trim()||'أجب عن جميع الأسئلة بوضوح.',questions:clean,createdAt:Date.now()};
+    await saveCustomHomework([...current,item]);
+    try { await publishHomework({...item,createdAt:Date.now()}); await publishNotice({id:`notice-${item.id}`,grade:item.grade,title:'واجب جديد',body:item.title,createdAt:Date.now()}); Alert.alert('تم النشر السحابي','وصل الواجب إلى طلاب الصف.'); } catch { Alert.alert('حُفظ محليًا','تعذر الاتصال بالسحابة؛ تحقق من قواعد Firebase.'); }
     router.back();
   };
   return <Page title="إنشاء واجب" subtitle="أضف أسئلة متعددة للطلاب" onBack={()=>router.back()}>

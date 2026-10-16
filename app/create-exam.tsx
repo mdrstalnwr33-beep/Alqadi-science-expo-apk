@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { grades, subjects, type ExamQuestion, type Grade, type Subject } from '../src/data';
 import { getCustomExams, saveCustomExams } from '../src/assessmentStore';
+import { publishExam, publishNotice } from '../src/contentCloud';
 import { Action, Card, Page, Section, C } from '../src/ui';
 
 type Draft = ExamQuestion & { optionsText: string };
@@ -31,8 +32,9 @@ export default function CreateExamScreen() {
     }));
     if (normalized.some(q => (q.type !== 'text' && (!q.options || q.options.length < 2 || !q.answer)))) return Alert.alert('إجابة ناقصة', 'أكمل الخيارات والإجابة الصحيحة لكل سؤال موضوعي.');
     const current = await getCustomExams();
-    await saveCustomExams([...current, { id: `custom-exam-${Date.now()}`, title: title.trim(), subject, grade, duration: Math.max(1, Number(duration) || 30), questions: normalized, createdAt: Date.now() }]);
-    Alert.alert('تم النشر', 'تم إنشاء الاختبار وإضافة جميع الأسئلة.');
+    const item={ id: `custom-exam-${Date.now()}`, title: title.trim(), subject, grade, duration: Math.max(1, Number(duration) || 30), questions: normalized, createdAt: Date.now() };
+    await saveCustomExams([...current,item]);
+    try { await publishExam(item); await publishNotice({id:`notice-${item.id}`,grade,title:'اختبار جديد',body:item.title,createdAt:Date.now()}); Alert.alert('تم النشر السحابي','وصل الاختبار إلى طلاب الصف.'); } catch { Alert.alert('حُفظ محليًا','تعذر الاتصال بالسحابة؛ تحقق من قواعد Firebase.'); }
     router.back();
   };
 
