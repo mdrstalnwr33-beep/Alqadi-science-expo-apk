@@ -24,7 +24,7 @@ export default function CreateHomeworkScreen() {
     const current = await getCustomHomework();
     const item={id:`custom-hw-${Date.now()}`,title:title.trim(),subject,grade,due:due.trim()||'غير محدد',note:note.trim()||'أجب عن جميع الأسئلة بوضوح.',questions:clean,createdAt:Date.now()};
     await saveCustomHomework([...current,item]);
-    try { await publishHomework({...item,createdAt:Date.now()}); await publishNotice({id:`notice-${item.id}`,grade:item.grade,title:'واجب جديد',body:item.title,createdAt:Date.now()}); Alert.alert('تم النشر السحابي','وصل الواجب إلى طلاب الصف.'); } catch { Alert.alert('حُفظ محليًا','تعذر الاتصال بالسحابة؛ تحقق من قواعد Firebase.'); }
+    try { await publishHomework({...item,createdAt:Date.now()}); await publishNotice({id:`notice-${item.id}`,grade:item.grade,title:'واجب جديد',body:item.title,createdAt:Date.now()}); Alert.alert('تم النشر السحابي','وصل الواجب إلى طلاب الصف.'); } catch (error) { const code=String((error as any)?.code||'unknown'); Alert.alert('تعذر النشر السحابي',code.includes('permission-denied')?'صلاحيات Firestore غير منشورة. افتح FIREBASE_DEPLOY.md وانشر firestore.rules.':`تعذر الاتصال بالسحابة (${code}).`); }
     router.back();
   };
   return <Page title="إنشاء واجب" subtitle="أضف أسئلة متعددة للطلاب" onBack={()=>router.back()}>

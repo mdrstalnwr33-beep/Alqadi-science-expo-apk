@@ -34,7 +34,7 @@ export default function CreateExamScreen() {
     const current = await getCustomExams();
     const item={ id: `custom-exam-${Date.now()}`, title: title.trim(), subject, grade, duration: Math.max(1, Number(duration) || 30), questions: normalized, createdAt: Date.now() };
     await saveCustomExams([...current,item]);
-    try { await publishExam(item); await publishNotice({id:`notice-${item.id}`,grade,title:'اختبار جديد',body:item.title,createdAt:Date.now()}); Alert.alert('تم النشر السحابي','وصل الاختبار إلى طلاب الصف.'); } catch { Alert.alert('حُفظ محليًا','تعذر الاتصال بالسحابة؛ تحقق من قواعد Firebase.'); }
+    try { await publishExam(item); await publishNotice({id:`notice-${item.id}`,grade,title:'اختبار جديد',body:item.title,createdAt:Date.now()}); Alert.alert('تم النشر السحابي','وصل الاختبار إلى طلاب الصف.'); } catch (error) { const code=String((error as any)?.code||'unknown'); Alert.alert('تعذر النشر السحابي',code.includes('permission-denied')?'صلاحيات Firestore غير منشورة. افتح FIREBASE_DEPLOY.md وانشر firestore.rules.':`تعذر الاتصال بالسحابة (${code}).`); }
     router.back();
   };
 
