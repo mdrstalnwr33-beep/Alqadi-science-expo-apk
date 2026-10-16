@@ -1,6 +1,12 @@
 node_modules/
 .expo/
+.env
+.env.*
 android/
 ios/
-.env
-*.log
+*.keystore
+*.jks
+*.p12
+*.mobileprovision
+npm-debug.log*
+.DS_Store

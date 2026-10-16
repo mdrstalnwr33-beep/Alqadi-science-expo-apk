@@ -1,0 +1,6 @@
+import { router, useLocalSearchParams } from 'expo-router';
+import { Text } from 'react-native';
+import { Card, Page, Section, C } from '../src/ui';
+
+const students=[['أحمد محمد','98%'],['سارة علي','96%'],['محمد خالد','94%'],['نور أحمد','92%']];
+export default function StudentDashboardScreen(){const p=useLocalSearchParams<{role?:string}>(); return <Page title="الطلاب الأوائل" subtitle="لوحة التميز والمتفوقين" onBack={()=>router.back()}><Card><Text style={{fontSize:38,textAlign:'center'}}>🏆</Text><Text style={{fontSize:20,fontWeight:'900',color:C.navy,textAlign:'center',marginTop:8}}>نجوم العلوم</Text><Text style={{color:C.muted,textAlign:'center',marginTop:6}}>يتم ترتيب الطلاب حسب نتائج الاختبارات والواجبات.</Text></Card><Section title="الترتيب الحالي">{students.map((s,i)=><Card key={s[0]}><Text style={{fontSize:17,fontWeight:'900',color:C.navy,textAlign:'right'}}>{i+1}  •  {s[0]}</Text><Text style={{color:C.green,textAlign:'right',marginTop:5,fontWeight:'800'}}>{s[1]}</Text></Card>)}</Section>{p.role==='teacher'&&<Card><Text style={{fontWeight:'800',color:C.navy,textAlign:'right'}}>بيانات تجريبية</Text><Text style={{color:C.muted,textAlign:'right',marginTop:5}}>سيتم استبدالها بنتائج الطلاب الفعلية بعد ربط قاعدة البيانات.</Text></Card>}</Page>}
