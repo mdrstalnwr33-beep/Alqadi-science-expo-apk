@@ -52,7 +52,7 @@ jobs:
       - name: Measure APK
         shell: bash
         run: |
-          APK=$(find app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' | head -n 1)
+          APK=$(find "$GITHUB_WORKSPACE/android/app/build/outputs/apk/release" -type f -name '*.apk' -print -quit)
           test -n "$APK"
           echo "APK_PATH=$APK"
           stat -c 'APK_BYTES=%s' "$APK"
