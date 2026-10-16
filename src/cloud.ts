@@ -1,5 +1,6 @@
 import { doc, getDoc, setDoc, deleteDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, firebaseApp } from './firebase';
+import { getDownloadURL, getStorage, ref, uploadBytes } from 'firebase/storage';
 import type { LocalStudent } from './storage';
 
 const cleanCode = (code:string) => /^\d{6}$/.test(code) ? code : null;
@@ -49,3 +50,12 @@ export async function releaseStudentDevice(code:string,deviceId:string){
 }
 export async function saveCloudTeacherProfile(profile:{name:string;school:string;bio:string;photo?:string}){await setDoc(doc(db,'publicContent','teacherProfile'),{...profile,updatedAt:Date.now()},{merge:true})}
 export async function getCloudTeacherProfile(){const snap=await getDoc(doc(db,'publicContent','teacherProfile'));return snap.exists()?snap.data():null}
+
+export async function uploadTeacherPhoto(uri:string){
+  const response=await fetch(uri);
+  const blob=await response.blob();
+  const storage=getStorage(firebaseApp);
+  const objectRef=ref(storage,`teacher-profiles/teacher-${Date.now()}.jpg`);
+  await uploadBytes(objectRef,blob,{contentType:'image/jpeg'});
+  return getDownloadURL(objectRef);
+}
