@@ -4,10 +4,10 @@
     "slug": "alqadi-science-app",
     "version": "0.3.3",
     "orientation": "portrait",
-    "icon": "./app-profile.jpg",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./app-profile.jpg",
+      "image": "./assets/icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#1E3A8A"
     },
@@ -15,7 +15,7 @@
       "package": "com.nourascience.app",
       "versionCode": 3,
       "adaptiveIcon": {
-        "foregroundImage": "./app-profile.jpg",
+        "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#1E3A8A"
       }
     },
@@ -25,7 +25,9 @@
         "expo-build-properties",
         {
           "android": {
-            "buildArchs": ["arm64-v8a"],
+            "buildArchs": [
+              "arm64-v8a"
+            ],
             "enableBundleCompression": true,
             "enableMinifyInReleaseBuilds": true,
             "useLegacyPackaging": true
