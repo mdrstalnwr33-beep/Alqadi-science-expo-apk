@@ -34,8 +34,6 @@ jobs:
           restore-keys: npm-${{ runner.os }}-
       - name: Install dependencies
         run: npm install --no-audit --no-fund
-      - name: Restore original Alqadi app icon
-        run: curl -L --fail --retry 3 -o app-profile.jpg https://raw.githubusercontent.com/mdrstalnwr33-beep/Alqadi-science-expo-apk/main/app-profile.jpg
       - name: Generate Android project
         run: npx expo prebuild --platform android --clean --no-install
       - name: Cache Gradle
