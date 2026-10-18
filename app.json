@@ -2,7 +2,7 @@
   "expo": {
     "name": "تطبيق القاضي للعلوم",
     "slug": "alqadi-science-app",
-    "version": "0.3.4",
+    "version": "0.3.5",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -13,7 +13,7 @@
     },
     "android": {
       "package": "com.nourascience.app",
-      "versionCode": 4,
+      "versionCode": 5,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon-foreground.png",
         "backgroundColor": "#1E3A8A"
