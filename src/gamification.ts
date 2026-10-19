@@ -144,3 +144,19 @@ export async function touchStudyDay(student: string) {
   await writeJson(key(student), next);
   return next;
 }
+
+export async function recordMatchResult(student: string, won: boolean, correct: number, total: number) {
+  const old = await getGamification(student);
+  const today = new Date().toISOString().slice(0, 10);
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const streak = old.lastStudyDate === today ? old.streak : old.lastStudyDate === yesterday ? old.streak + 1 : 1;
+  const reward = won ? 80 : correct >= Math.ceil(total * 0.7) ? 35 : 15;
+  const badges = [...old.badges];
+  const add = (b: string) => { if (!badges.includes(b)) badges.push(b); };
+  if (won) add('بطل المباراة العلمية');
+  if (correct === total && total > 0) add('إجابات مثالية');
+  const xp = old.xp + reward;
+  const next: GamificationState = { ...old, xp, level: levelFromXp(xp), streak, lastStudyDate: today, answered: old.answered + total, correct: old.correct + correct, badges };
+  await writeJson(key(student), next);
+  return { state: next, reward };
+}
