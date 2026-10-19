@@ -1,13 +1,26 @@
-import { router } from 'expo-router';
-import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
+import { getGradeHomework, saveHomeworkSubmission, type CloudHomework } from '../src/assessmentCloud';
+import { Card, Page, Section, C } from '../src/ui';
 
-export default function TeacherHomeworkScreen() {
-  return (
-    <SafeAreaView style={styles.safe}><View style={styles.container}>
-      <Pressable onPress={() => router.back()}><Text style={styles.back}>رجوع ›</Text></Pressable>
-      <Text style={styles.title}>الواجبات والتصحيح</Text>
-      <View style={styles.card}><Text style={styles.icon}>📋</Text><Text style={styles.heading}>مراجعة واجبات الطلاب</Text><Text style={styles.note}>سيتم ربط التسليمات والتعليقات والدرجات بحساب المعلم مع منع إعادة التسليم بعد الإرسال النهائي.</Text></View>
-    </View></SafeAreaView>
-  );
+export default function TeacherHomeworkScreen(){
+ const p=useLocalSearchParams<{grade?:string;subject?:string}>(); const grade=p.grade||'المستوى';
+ const [items,setItems]=useState<CloudHomework[]>([]); const [loading,setLoading]=useState(true); const [error,setError]=useState(''); const [selected,setSelected]=useState<CloudHomework>(); const [score,setScore]=useState(''); const [comment,setComment]=useState(''); const [saving,setSaving]=useState(false);
+ const load=useCallback(async()=>{setLoading(true);setError('');try{setItems(await getGradeHomework(grade,p.subject||undefined));}catch{setError('تعذر تحميل تسليمات الواجبات. تأكد من اتصال الإنترنت وقواعد Firebase.');}finally{setLoading(false);}},[grade,p.subject]);
+ useEffect(()=>{load();},[load]);
+ const pending=useMemo(()=>items.filter(x=>x.score===undefined),[items]); const graded=items.filter(x=>x.score!==undefined); const average=graded.length?Math.round(graded.reduce((s,x)=>s+(x.score||0),0)/graded.length):0;
+ const open=(x:CloudHomework)=>{setSelected(x);setScore(x.score===undefined?'':String(x.score));setComment(x.teacherComment||'');};
+ const save=async()=>{if(!selected)return;const n=Number(score);if(!Number.isFinite(n)||n<0||n>100)return Alert.alert('درجة غير صحيحة','اكتب درجة من 0 إلى 100.');setSaving(true);try{await saveHomeworkSubmission({...selected,score:n,teacherComment:comment.trim()});setItems(xs=>xs.map(x=>x.id===selected.id?{...x,score:n,teacherComment:comment.trim()}:x));setSelected({...selected,score:n,teacherComment:comment.trim()});Alert.alert('تم الحفظ','تم حفظ درجة وتعليق الطالب في Firebase.');}catch{Alert.alert('تعذر الحفظ','تحقق من الاتصال ثم حاول مرة أخرى.');}finally{setSaving(false);}};
+ return <Page title="الواجبات والتصحيح" subtitle={`${grade} • تسليمات الطلاب`} onBack={()=>router.back()}>
+  <ScrollView refreshControl={<RefreshControl refreshing={loading} onRefresh={load}/>} showsVerticalScrollIndicator={false}>
+   <View style={{flexDirection:'row-reverse',gap:8}}><Stat label="التسليمات" value={String(items.length)}/><Stat label="بانتظار التصحيح" value={String(pending.length)}/><Stat label="متوسط المصحح" value={`${average}%`}/></View>
+   {error?<Card><Text style={{color:'#b42318',textAlign:'right',fontWeight:'800'}}>{error}</Text></Card>:null}
+   <Section title="تسليمات بانتظار التصحيح"><Card>{pending.length?pending.map(x=><Submission key={x.id} item={x} onPress={()=>open(x)}/>):<Text style={{textAlign:'center',color:C.green,fontWeight:'800'}}>{loading?'جارٍ التحميل...':'لا توجد واجبات معلقة حاليًا.'}</Text>}</Card></Section>
+   <Section title="واجبات تم تصحيحها"><Card>{graded.length?graded.slice().sort((a,b)=>b.submittedAt-a.submittedAt).slice(0,12).map(x=><Submission key={x.id} item={x} onPress={()=>open(x)}/>):<Text style={{textAlign:'center',color:C.muted}}>ستظهر الواجبات المصححة هنا.</Text>}</Card></Section>
+   {selected&&<Section title="تصحيح الطالب"><Card><Text style={{fontSize:20,fontWeight:'900',color:C.navy,textAlign:'right'}}>{selected.studentName}</Text><Text style={{color:C.muted,textAlign:'right',marginTop:4}}>{selected.title} • {selected.subject}</Text><Text style={{fontWeight:'900',color:C.navy,textAlign:'right',marginTop:15}}>الإجابات</Text>{Object.entries(selected.answers||{}).map(([q,a],i)=><View key={q} style={{paddingVertical:10,borderBottomWidth:i===Object.keys(selected.answers||{}).length-1?0:1,borderBottomColor:'#eef0f3'}}><Text style={{fontWeight:'800',color:C.text,textAlign:'right'}}>{q}</Text><Text style={{color:C.muted,textAlign:'right',marginTop:5,lineHeight:21}}>{a||'—'}</Text></View>)}<Text style={{fontWeight:'900',color:C.navy,textAlign:'right',marginTop:12}}>الدرجة (من 100)</Text><TextInput value={score} onChangeText={setScore} keyboardType="numeric" placeholder="مثال: 85" placeholderTextColor="#98a2b3" style={{borderWidth:1,borderColor:C.border,borderRadius:12,padding:11,marginTop:6,textAlign:'right',color:C.text}}/><Text style={{fontWeight:'900',color:C.navy,textAlign:'right',marginTop:12}}>تعليق المعلم</Text><TextInput value={comment} onChangeText={setComment} multiline placeholder="اكتب ملاحظة للطالب..." placeholderTextColor="#98a2b3" style={{borderWidth:1,borderColor:C.border,borderRadius:12,padding:11,minHeight:85,marginTop:6,textAlign:'right',textAlignVertical:'top',color:C.text}}/><Pressable onPress={save} disabled={saving} style={{backgroundColor:C.navy,borderRadius:13,padding:14,marginTop:12,opacity:saving?.6:1}}><Text style={{color:'#fff',fontWeight:'900',textAlign:'center'}}>{saving?'جارٍ الحفظ...':'حفظ الدرجة والتعليق'}</Text></Pressable></Card></Section>}
+  </ScrollView>
+ </Page>;
 }
-const styles=StyleSheet.create({safe:{flex:1,backgroundColor:'#f4f7fb'},container:{padding:20},back:{color:'#356ae6',fontWeight:'800',marginBottom:18,textAlign:'right'},title:{fontSize:27,fontWeight:'900',color:'#14213d',textAlign:'right',marginBottom:20},card:{backgroundColor:'#fff',borderRadius:22,padding:28,alignItems:'center',elevation:2},icon:{fontSize:46},heading:{fontSize:20,fontWeight:'900',color:'#14213d',marginTop:10},note:{color:'#667085',textAlign:'center',lineHeight:24,marginTop:10}});
+function Submission({item,onPress}:{item:CloudHomework;onPress:()=>void}){return <Pressable onPress={onPress} style={{paddingVertical:11,borderBottomWidth:1,borderBottomColor:'#eef0f3'}}><View style={{flexDirection:'row-reverse',justifyContent:'space-between'}}><Text style={{fontWeight:'900',color:C.navy,flex:1,textAlign:'right'}}>{item.studentName}</Text><Text style={{fontWeight:'900',color:item.score===undefined?'#a15c00':C.green}}>{item.score===undefined?'بانتظار التصحيح':`${item.score}/100`}</Text></View><Text style={{fontSize:11,color:C.muted,textAlign:'right',marginTop:4}}>{item.title} • {item.subject} • {new Date(item.submittedAt).toLocaleDateString('ar-YE')}</Text></Pressable>}
+function Stat({label,value}:{label:string;value:string}){return <View style={{flex:1,backgroundColor:'#f5f7fb',borderRadius:12,padding:10,alignItems:'center',marginBottom:12}}><Text style={{fontSize:19,fontWeight:'900',color:C.navy}}>{value}</Text><Text style={{fontSize:10,color:C.muted,textAlign:'center',marginTop:3}}>{label}</Text></View>}
