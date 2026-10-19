@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { getVirtualScientist, getScientistMessage, scientistStages, type ScientistStage } from '../src/virtual-scientist';
-import { getGamification, type GamificationState } from '../src/gamification';
+import { type GamificationState } from '../src/gamification';
 
 export default function VirtualScientist() {
   const p = useLocalSearchParams<{ name?: string; code?: string; grade?: string }>();
@@ -15,25 +15,17 @@ export default function VirtualScientist() {
   const mission = data?.mission || { missionProgress: 0, missionCompleted: false };
   const accuracy = s.answered ? Math.round(s.correct / s.answered * 100) : 0;
   const message = getScientistMessage(s);
-
   return <SafeAreaView style={styles.safe}><ScrollView contentContainerStyle={styles.content}>
     <View style={styles.header}><Pressable onPress={() => router.back()}><Text style={styles.back}>‹</Text></Pressable><View style={{ flex: 1 }}><Text style={styles.eyebrow}>مختبرك الشخصي</Text><Text style={styles.title}>عالمي الافتراضي 🪄</Text><Text style={styles.sub}>{p.name || 'عالم العلوم'} • {p.grade || 'العلوم'}</Text></View></View>
-
     <View style={styles.hero}><View style={styles.avatar}><Text style={styles.avatarText}>{stage.icon}</Text><View style={styles.level}><Text style={styles.levelText}>Lv {s.level}</Text></View></View><View style={{ flex: 1 }}><Text style={styles.heroSmall}>رتبتك العلمية</Text><Text style={styles.heroTitle}>{stage.title}</Text><Text style={styles.heroText}>{stage.lab}</Text><View style={styles.xpRow}><Text style={styles.xpText}>{s.xp} XP</Text><Text style={styles.xpText}>🔥 {s.streak} يوم</Text></View></View></View>
-
     <View style={styles.message}><Text style={styles.messageIcon}>🧑‍🔬</Text><View style={{ flex: 1 }}><Text style={styles.messageTitle}>رسالة عالمك</Text><Text style={styles.messageText}>{message}</Text></View></View>
-
     <Text style={styles.section}>🧪 مختبرك يتطور معك</Text><View style={styles.labCard}><Text style={styles.labEmoji}>{stage.key === 'legend' ? '🏛️' : stage.key === 'advanced' ? '🔭' : stage.key === 'scientist' ? '⚗️' : stage.key === 'explorer' ? '🧫' : '🧪'}</Text><View style={{ flex: 1 }}><Text style={styles.labTitle}>{stage.lab}</Text><Text style={styles.labText}>كلما ارتفع مستواك، يفتح عالمك محطة علمية جديدة.</Text></View></View>
-
     <Text style={styles.section}>🎯 مهمة العالم اليوم</Text><View style={styles.mission}><View style={styles.missionBadge}><Text style={styles.missionNumber}>{mission.missionProgress}</Text><Text style={styles.missionOf}>/ 5</Text></View><View style={{ flex: 1 }}><Text style={styles.missionTitle}>{mission.missionCompleted ? 'اكتملت المهمة! 🏆' : 'أنجز 5 أسئلة علمية'}</Text><Text style={styles.missionText}>{mission.missionCompleted ? 'أثبتَّ أنك عالم نشيط اليوم.' : 'كل إجابة تقربك من ترقية مختبرك.'}</Text><View style={styles.track}><View style={[styles.fill, { width: `${Math.min(100, mission.missionProgress / 5 * 100)}%` }]} /></View></View></View>
-
     <View style={styles.stats}><Stat value={`${accuracy}%`} label="الدقة" icon="🎯" /><Stat value={String(s.correct)} label="إجابة صحيحة" icon="✅" /><Stat value={String(s.badges.length)} label="شارات" icon="🏅" /></View>
-
     <Text style={styles.section}>🚀 مختبر التجارب</Text>
     <Action icon="🧠" title="التدريب الذكي" text="أسئلة تتكيف مع أخطائك" onPress={() => router.push({ pathname: '/smart-practice', params: { name: p.name, code: p.code } })} />
     <Action icon="⚔️" title="المباراة العلمية" text="واجه منافسًا واكسب XP" onPress={() => router.push({ pathname: '/science-match', params: { name: p.name, code: p.code } })} />
-    <Action icon="🏆" title="البطولة الأسبوعية" text="نافس على كأس الطالب المتصدر" onPress={() => router.push({ pathname: '/science-tournament', params: { name: p.name, code: p.code } })} />
-
+    <Action icon="🏆" title="البطولة الأسبوعية" text="نافس على كأس الطالب المتصدر" onPress={() => router.push({ pathname: '/science-progress', params: { name: p.name, code: p.code, grade: p.grade } })} />
     <Text style={styles.section}>🌟 مراحل التحول</Text><View style={styles.stages}>{scientistStages.map(item => { const active = item.key === stage.key; const unlocked = s.level >= item.minLevel; return <View key={item.key} style={[styles.stage, active && styles.stageActive, !unlocked && styles.stageLocked]}><Text style={styles.stageIcon}>{unlocked ? item.icon : '🔒'}</Text><View style={{ flex: 1 }}><Text style={styles.stageTitle}>{item.title}</Text><Text style={styles.stageText}>المستوى {item.minLevel}+</Text></View>{active && <Text style={styles.now}>أنت هنا</Text>}</View>; })}</View>
   </ScrollView></SafeAreaView>;
 }
