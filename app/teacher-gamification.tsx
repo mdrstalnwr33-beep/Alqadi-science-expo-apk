@@ -3,98 +3,61 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { grades } from '../src/data';
 import { dailyChallenges, getDailyChallenge, levelFromXp, type GamificationState } from '../src/gamification';
+import { getMotivationContent, makeId, saveMotivationContent, type MotivationChallenge, type MotivationExperiment, type MotivationQuestion } from '../src/motivationCloud';
 import { readJson, storageKeys, writeJson, type LocalStudent } from '../src/storage';
 
 const empty: GamificationState = { xp: 0, level: 1, streak: 0, answered: 0, correct: 0, completedExams: 0, badges: [], challengeProgress: 0, challengeCompleted: false, challengeRewarded: false, consecutiveCorrect: 0 };
 const stateKey = (code: string) => `science-gamification:${code}`;
+const blankChallenge = { title:'', text:'', target:'5', reward:'50' };
+const blankQuestion = { question:'', answer:'', subject:'الكيمياء', reward:'10' };
+const blankExperiment = { title:'', materials:'', steps:'', result:'', reward:'20' };
 
 export default function TeacherGamificationScreen() {
   const p = useLocalSearchParams<{ grade?: string; stage?: string }>();
   const grade = p.stage || p.grade || grades[0];
-  const [students, setStudents] = useState<LocalStudent[]>([]);
-  const [states, setStates] = useState<Record<string, GamificationState>>({});
-  const [selected, setSelected] = useState<LocalStudent | null>(null);
-  const [xpInput, setXpInput] = useState('50');
-  const [badgeInput, setBadgeInput] = useState('');
+  const [students,setStudents]=useState<LocalStudent[]>([]); const [states,setStates]=useState<Record<string,GamificationState>>({}); const [selected,setSelected]=useState<LocalStudent|null>(null);
+  const [xpInput,setXpInput]=useState('50'); const [badgeInput,setBadgeInput]=useState('');
+  const [tab,setTab]=useState<'students'|'content'>('students');
+  const [challenges,setChallenges]=useState<MotivationChallenge[]>([]); const [questions,setQuestions]=useState<MotivationQuestion[]>([]); const [experiments,setExperiments]=useState<MotivationExperiment[]>([]);
+  const [challengeForm,setChallengeForm]=useState(blankChallenge); const [questionForm,setQuestionForm]=useState(blankQuestion); const [experimentForm,setExperimentForm]=useState(blankExperiment);
 
-  const load = async () => {
-    const all = await readJson<LocalStudent[]>(storageKeys.students, []);
-    const list = all.filter(s => s.grade === grade);
-    const pairs = await Promise.all(list.map(async s => [s.code, await readJson<GamificationState>(stateKey(s.code), empty)] as const));
-    setStudents(list);
-    setStates(Object.fromEntries(pairs));
-  };
-  useEffect(() => { load(); }, [grade]);
-
-  const challenge = getDailyChallenge();
-  const totalXp = useMemo(() => students.reduce((sum, s) => sum + (states[s.code]?.xp || 0), 0), [students, states]);
-  const completedChallenges = students.filter(s => states[s.code]?.challengeCompleted).length;
-
-  const saveState = async (student: LocalStudent, patch: Partial<GamificationState>) => {
-    const old = { ...empty, ...(states[student.code] || {}) };
-    const next = { ...old, ...patch, level: levelFromXp(Math.max(0, patch.xp ?? old.xp)) };
-    await writeJson(stateKey(student.code), next);
-    setStates(prev => ({ ...prev, [student.code]: next }));
-    setSelected({ ...student });
-  };
-
-  const addXp = async (amount: number) => {
-    if (!selected) return;
-    const value = Number(xpInput);
-    if (!Number.isFinite(value) || value <= 0) return Alert.alert('قيمة غير صحيحة', 'أدخل عدد XP موجبًا.');
-    await saveState(selected, { xp: Math.max(0, (states[selected.code]?.xp || 0) + amount * value) });
-    Alert.alert('تم التحديث', `${amount > 0 ? 'تمت إضافة' : 'تم خصم'} ${value} XP من ${selected.name}.`);
-  };
-
-  const awardBadge = async () => {
-    if (!selected || !badgeInput.trim()) return;
-    const old = states[selected.code] || empty;
-    const badge = badgeInput.trim();
-    const badges = old.badges.includes(badge) ? old.badges : [...old.badges, badge];
-    await saveState(selected, { badges });
-    setBadgeInput('');
-    Alert.alert('تم منح الشارة', `${badge} ← ${selected.name}`);
-  };
-
-  const resetProgress = () => {
-    if (!selected) return;
-    Alert.alert('تأكيد إعادة الضبط', `سيتم تصفير تقدم ${selected.name} المحلي في نظام التحفيز.`, [
-      { text: 'إلغاء', style: 'cancel' },
-      { text: 'تصفير', style: 'destructive', onPress: async () => { await writeJson(stateKey(selected.code), empty); setStates(prev => ({ ...prev, [selected.code]: empty })); } },
-    ]);
-  };
+  const load=async()=>{ const all=await readJson<LocalStudent[]>(storageKeys.students,[]); const list=all.filter(s=>s.grade===grade); const pairs=await Promise.all(list.map(async s=>[s.code,await readJson<GamificationState>(stateKey(s.code),empty)] as const)); setStudents(list); setStates(Object.fromEntries(pairs)); const c=await getMotivationContent(); setChallenges(c.challenges); setQuestions(c.questions); setExperiments(c.experiments); };
+  useEffect(()=>{load();},[grade]);
+  const challenge=getDailyChallenge(); const totalXp=useMemo(()=>students.reduce((sum,s)=>sum+(states[s.code]?.xp||0),0),[students,states]); const completedChallenges=students.filter(s=>states[s.code]?.challengeCompleted).length;
+  const saveState=async(student:LocalStudent,patch:Partial<GamificationState>)=>{ const old={...empty,...(states[student.code]||{})}; const next={...old,...patch,level:levelFromXp(Math.max(0,patch.xp??old.xp))}; await writeJson(stateKey(student.code),next); setStates(prev=>({...prev,[student.code]:next})); setSelected({...student}); };
+  const addXp=async(amount:number)=>{if(!selected)return; const value=Number(xpInput); if(!Number.isFinite(value)||value<=0)return Alert.alert('قيمة غير صحيحة','أدخل عدد XP موجبًا.'); await saveState(selected,{xp:Math.max(0,(states[selected.code]?.xp||0)+amount*value)}); Alert.alert('تم التحديث',`${amount>0?'تمت إضافة':'تم خصم'} ${value} XP من ${selected.name}.`);};
+  const awardBadge=async()=>{if(!selected||!badgeInput.trim())return; const old=states[selected.code]||empty; const badge=badgeInput.trim(); await saveState(selected,{badges:old.badges.includes(badge)?old.badges:[...old.badges,badge]}); setBadgeInput(''); Alert.alert('تم منح الشارة',`${badge} ← ${selected.name}`);};
+  const resetProgress=()=>{if(!selected)return; Alert.alert('تأكيد إعادة الضبط',`سيتم تصفير تقدم ${selected.name}.`,[{text:'إلغاء',style:'cancel'},{text:'تصفير',style:'destructive',onPress:async()=>{await writeJson(stateKey(selected.code),empty);setStates(prev=>({...prev,[selected.code]:empty}));}}]);};
+  const persist=async(c:MotivationChallenge[],q:MotivationQuestion[],e:MotivationExperiment[])=>{await saveMotivationContent({challenges:c,questions:q,experiments:e});setChallenges(c);setQuestions(q);setExperiments(e);};
+  const addChallenge=async()=>{if(!challengeForm.title.trim()||!challengeForm.text.trim())return Alert.alert('بيانات ناقصة','اكتب عنوان التحدي ووصفه.'); const item={id:makeId('challenge'),title:challengeForm.title.trim(),text:challengeForm.text.trim(),target:Math.max(1,Number(challengeForm.target)||1),reward:Math.max(0,Number(challengeForm.reward)||0),active:true}; await persist([...challenges,item],questions,experiments); setChallengeForm(blankChallenge); Alert.alert('تم','أضيف التحدي للطلاب.');};
+  const addQuestion=async()=>{if(!questionForm.question.trim()||!questionForm.answer.trim())return Alert.alert('بيانات ناقصة','اكتب السؤال والإجابة الصحيحة.'); const item={id:makeId('question'),question:questionForm.question.trim(),answer:questionForm.answer.trim(),subject:questionForm.subject.trim()||'علوم',reward:Math.max(0,Number(questionForm.reward)||0),active:true}; await persist(challenges,[...questions,item],experiments); setQuestionForm(blankQuestion); Alert.alert('تم','أضيف السؤال إلى بنك التحفيز.');};
+  const addExperiment=async()=>{if(!experimentForm.title.trim()||!experimentForm.steps.trim())return Alert.alert('بيانات ناقصة','اكتب اسم التجربة والخطوات.'); const item={id:makeId('experiment'),title:experimentForm.title.trim(),materials:experimentForm.materials.trim(),steps:experimentForm.steps.trim(),result:experimentForm.result.trim(),reward:Math.max(0,Number(experimentForm.reward)||0),active:true}; await persist(challenges,questions,[...experiments,item]); setExperimentForm(blankExperiment); Alert.alert('تم','أضيفت التجربة إلى محتوى التحفيز.');};
+  const removeChallenge=async(id:string)=>{await persist(challenges.filter(x=>x.id!==id),questions,experiments);}; const removeQuestion=async(id:string)=>{await persist(challenges,questions.filter(x=>x.id!==id),experiments);}; const removeExperiment=async(id:string)=>{await persist(challenges,questions,experiments.filter(x=>x.id!==id));};
 
   return <SafeAreaView style={styles.safe}><ScrollView contentContainerStyle={styles.container}>
-    <Pressable onPress={() => router.back()}><Text style={styles.back}>رجوع ›</Text></Pressable>
-    <Text style={styles.title}>🎮 إدارة التحفيز والمتابعة</Text>
-    <Text style={styles.subtitle}>المستوى: {grade}</Text>
-    <Pressable style={styles.analyticsButton} onPress={() => router.push({pathname:'/teacher-analytics',params:{role:'teacher',grade,stage:grade}})}><Text style={styles.analyticsTitle}>📊 تحليل أداء الطلاب</Text><Text style={styles.analyticsText}>متوسط المستوى • المواد • المتفوقون • الطلاب الذين يحتاجون متابعة</Text></Pressable>
-
-    <View style={styles.statsRow}>
-      <Stat label="الطلاب" value={String(students.length)} />
-      <Stat label="XP الكلي" value={String(totalXp)} />
-      <Stat label="أكملوا التحدي" value={String(completedChallenges)} />
-    </View>
-
-    <View style={styles.challenge}><Text style={styles.challengeTitle}>{challenge.icon} تحدي اليوم: {challenge.title}</Text><Text style={styles.challengeText}>{challenge.text} • المكافأة {challenge.reward} XP</Text><Text style={styles.small}>يمكنك متابعة إنجاز كل طالب من القائمة أدناه.</Text></View>
-
-    <Text style={styles.section}>الطلاب</Text>
-    {students.length === 0 && <View style={styles.card}><Text style={styles.empty}>لا يوجد طلاب مسجلون في هذا المستوى بعد.</Text></View>}
-    {students.map(s => { const st = states[s.code] || empty; const selectedNow = selected?.code === s.code; return <Pressable key={s.id} onPress={() => setSelected(s)} style={[styles.student, selectedNow && styles.studentSelected]}>
-      <View style={{ flex: 1 }}><Text style={styles.name}>{s.name}</Text><Text style={styles.small}>المستوى {st.level} • {st.xp} XP • 🔥 {st.streak} أيام • 🎖️ {st.badges.length}</Text><Text style={styles.small}>الدقة: {st.answered ? Math.round((st.correct / st.answered) * 100) : 0}% • اختبارات: {st.completedExams}</Text></View><Text style={styles.chevron}>‹</Text>
-    </Pressable>; })}
-
-    {selected && <View style={styles.card}>
-      <Text style={styles.sectionTitle}>إدارة: {selected.name}</Text>
-      <View style={styles.highlight}><Text style={styles.big}>{states[selected.code]?.xp || 0} XP</Text><Text style={styles.small}>المستوى {states[selected.code]?.level || 1}</Text></View>
-      <Text style={styles.label}>إضافة / خصم XP</Text><TextInput value={xpInput} onChangeText={v => setXpInput(v.replace(/\D/g, ''))} keyboardType="number-pad" style={styles.input} textAlign="center"/><View style={styles.actions}><Pressable style={styles.primary} onPress={() => addXp(1)}><Text style={styles.primaryText}>＋ إضافة XP</Text></Pressable><Pressable style={styles.danger} onPress={() => addXp(-1)}><Text style={styles.dangerText}>− خصم XP</Text></Pressable></View>
-      <Text style={styles.label}>منح شارة</Text><TextInput value={badgeInput} onChangeText={setBadgeInput} placeholder="مثال: متفوق الكيمياء" style={styles.input} textAlign="right"/><Pressable style={styles.secondary} onPress={awardBadge}><Text style={styles.secondaryText}>🏅 منح الشارة</Text></Pressable>
-      <Text style={styles.label}>الشارات الحالية</Text><Text style={styles.badges}>{(states[selected.code]?.badges || []).join(' • ') || 'لا توجد شارات بعد'}</Text>
-      <Pressable style={styles.reset} onPress={resetProgress}><Text style={styles.resetText}>إعادة ضبط تقدم التحفيز</Text></Pressable>
-    </View>}
-
-    <View style={styles.card}><Text style={styles.sectionTitle}>📌 نظام المكافآت الحالي</Text>{dailyChallenges.map(c => <View key={c.id} style={styles.rule}><Text style={styles.ruleTitle}>{c.icon} {c.title}</Text><Text style={styles.small}>{c.text} • +{c.reward} XP</Text></View>)}</View>
+    <Pressable onPress={()=>router.back()}><Text style={styles.back}>رجوع ›</Text></Pressable>
+    <Text style={styles.title}>🎮 إدارة التحفيز والمتابعة</Text><Text style={styles.subtitle}>المستوى: {grade} • المعلم يستطيع الآن إدارة محتوى التحفيز</Text>
+    <View style={styles.tabs}><Pressable onPress={()=>setTab('students')} style={[styles.tab,tab==='students'&&styles.tabActive]}><Text style={[styles.tabText,tab==='students'&&styles.tabTextActive]}>👨‍🎓 الطلاب</Text></Pressable><Pressable onPress={()=>setTab('content')} style={[styles.tab,tab==='content'&&styles.tabActive]}><Text style={[styles.tabText,tab==='content'&&styles.tabTextActive]}>🛠️ إدارة المحتوى</Text></Pressable></View>
+    {tab==='students'?<>
+      <Pressable style={styles.analyticsButton} onPress={()=>router.push({pathname:'/teacher-analytics',params:{role:'teacher',grade,stage:grade}})}><Text style={styles.analyticsTitle}>📊 تحليل أداء الطلاب</Text><Text style={styles.analyticsText}>متوسط المستوى • المواد • المتفوقون • الطلاب الذين يحتاجون متابعة</Text></Pressable>
+      <View style={styles.statsRow}><Stat label="الطلاب" value={String(students.length)}/><Stat label="XP الكلي" value={String(totalXp)}/><Stat label="أكملوا التحدي" value={String(completedChallenges)}/></View>
+      <View style={styles.challenge}><Text style={styles.challengeTitle}>{challenge.icon} تحدي اليوم: {challenge.title}</Text><Text style={styles.challengeText}>{challenge.text} • المكافأة {challenge.reward} XP</Text></View>
+      <Text style={styles.section}>الطلاب</Text>{students.length===0&&<View style={styles.card}><Text style={styles.empty}>لا يوجد طلاب مسجلون في هذا المستوى بعد.</Text></View>}
+      {students.map(s=>{const st=states[s.code]||empty;return <Pressable key={s.id} onPress={()=>setSelected(s)} style={[styles.student,selected?.code===s.code&&styles.studentSelected]}><View style={{flex:1}}><Text style={styles.name}>{s.name}</Text><Text style={styles.small}>المستوى {st.level} • {st.xp} XP • 🔥 {st.streak} أيام • 🎖️ {st.badges.length}</Text><Text style={styles.small}>الدقة: {st.answered?Math.round(st.correct/st.answered*100):0}% • اختبارات: {st.completedExams}</Text></View><Text style={styles.chevron}>‹</Text></Pressable>})}
+      {selected&&<View style={styles.card}><Text style={styles.sectionTitle}>إدارة: {selected.name}</Text><View style={styles.highlight}><Text style={styles.big}>{states[selected.code]?.xp||0} XP</Text><Text style={styles.small}>المستوى {states[selected.code]?.level||1}</Text></View><Text style={styles.label}>إضافة / خصم XP</Text><TextInput value={xpInput} onChangeText={v=>setXpInput(v.replace(/\D/g,''))} keyboardType="number-pad" style={styles.input} textAlign="center"/><View style={styles.actions}><Pressable style={styles.primary} onPress={()=>addXp(1)}><Text style={styles.primaryText}>＋ إضافة XP</Text></Pressable><Pressable style={styles.danger} onPress={()=>addXp(-1)}><Text style={styles.dangerText}>− خصم XP</Text></Pressable></View><Text style={styles.label}>منح شارة</Text><TextInput value={badgeInput} onChangeText={setBadgeInput} placeholder="مثال: متفوق الكيمياء" style={styles.input} textAlign="right"/><Pressable style={styles.secondary} onPress={awardBadge}><Text style={styles.secondaryText}>🏅 منح الشارة</Text></Pressable><Text style={styles.label}>الشارات الحالية</Text><Text style={styles.badges}>{(states[selected.code]?.badges||[]).join(' • ')||'لا توجد شارات بعد'}</Text><Pressable style={styles.reset} onPress={resetProgress}><Text style={styles.resetText}>إعادة ضبط تقدم التحفيز</Text></Pressable></View>}
+    </>:<>
+      <View style={styles.info}><Text style={styles.infoTitle}>🛠️ محتوى التحفيز</Text><Text style={styles.small}>أضف تحديات وأسئلة وتجارب من هاتف المعلم. المحتوى يُحفظ في Firebase الموجود في التطبيق، لذلك يظهر للطلاب عند الاتصال بالإنترنت، دون خدمة ذكاء اصطناعي أو اشتراك مدفوع.</Text></View>
+      <Editor title="🏆 إضافة تحدٍ" fields={[['العنوان','title'],['الوصف','text'],['الهدف','target'],['المكافأة XP','reward']]} values={challengeForm} setValues={setChallengeForm} onAdd={addChallenge}/>
+      <List title="التحديات المضافة" items={challenges.map(x=>`${x.title} • ${x.reward} XP • هدف ${x.target}`)} onRemove={removeChallenge} ids={challenges.map(x=>x.id)}/>
+      <Editor title="❓ إضافة سؤال تحفيزي" fields={[['السؤال','question'],['الإجابة الصحيحة','answer'],['المادة','subject'],['المكافأة XP','reward']]} values={questionForm} setValues={setQuestionForm} onAdd={addQuestion}/>
+      <List title="بنك الأسئلة" items={questions.map(x=>`${x.subject}: ${x.question} • +${x.reward} XP`)} onRemove={removeQuestion} ids={questions.map(x=>x.id)}/>
+      <Editor title="🧪 إضافة تجربة علمية" fields={[['اسم التجربة','title'],['الأدوات والمواد','materials'],['الخطوات','steps'],['النتيجة/الملاحظة','result'],['المكافأة XP','reward']]} values={experimentForm} setValues={setExperimentForm} onAdd={addExperiment} multiline={['materials','steps','result']}/>
+      <List title="التجارب المضافة" items={experiments.map(x=>`${x.title} • +${x.reward} XP`)} onRemove={removeExperiment} ids={experiments.map(x=>x.id)}/>
+      <View style={styles.card}><Text style={styles.sectionTitle}>📌 النظام الأساسي</Text>{dailyChallenges.map(c=><View key={c.id} style={styles.rule}><Text style={styles.ruleTitle}>{c.icon} {c.title}</Text><Text style={styles.small}>{c.text} • +{c.reward} XP</Text></View>)}</View>
+    </>}
   </ScrollView></SafeAreaView>;
 }
-function Stat({ label, value }: { label: string; value: string }) { return <View style={styles.stat}><Text style={styles.statValue}>{value}</Text><Text style={styles.small}>{label}</Text></View>; }
-const styles = StyleSheet.create({ safe:{flex:1,backgroundColor:'#f4f7fb'},container:{padding:18,paddingBottom:45},back:{color:'#356ae6',fontWeight:'800',marginBottom:12,textAlign:'right'},title:{fontSize:26,fontWeight:'900',color:'#14213d',textAlign:'right'},subtitle:{fontSize:13,color:'#667085',textAlign:'right',marginTop:4,marginBottom:14},analyticsButton:{backgroundColor:'#356ae6',borderRadius:17,padding:15,marginBottom:13},analyticsTitle:{color:'#fff',fontSize:16,fontWeight:'900',textAlign:'right'},analyticsText:{color:'#eaf0ff',fontSize:11,textAlign:'right',marginTop:5,lineHeight:18},statsRow:{flexDirection:'row-reverse',gap:8,marginBottom:12},stat:{flex:1,backgroundColor:'#fff',borderRadius:16,padding:13,alignItems:'center',borderWidth:1,borderColor:'#eaecf0'},statValue:{fontSize:20,fontWeight:'900',color:'#17324d'},small:{fontSize:11,color:'#667085',marginTop:3},challenge:{backgroundColor:'#17324d',borderRadius:18,padding:16,marginBottom:14},challengeTitle:{color:'#fff',fontSize:17,fontWeight:'900',textAlign:'right'},challengeText:{color:'#e6eef8',fontSize:12,textAlign:'right',marginTop:5},section:{fontSize:19,fontWeight:'900',color:'#14213d',textAlign:'right',marginBottom:9},student:{backgroundColor:'#fff',borderRadius:16,padding:14,marginBottom:8,flexDirection:'row-reverse',alignItems:'center',borderWidth:1,borderColor:'#eaecf0'},studentSelected:{borderColor:'#356ae6',borderWidth:2},name:{fontSize:16,fontWeight:'900',color:'#14213d',textAlign:'right'},chevron:{fontSize:28,color:'#98a2b3'},card:{backgroundColor:'#fff',borderRadius:18,padding:16,marginTop:8,marginBottom:12,borderWidth:1,borderColor:'#eaecf0'},sectionTitle:{fontSize:18,fontWeight:'900',color:'#14213d',textAlign:'right',marginBottom:10},highlight:{backgroundColor:'#eef4f8',borderRadius:14,padding:13,alignItems:'center',marginBottom:10},big:{fontSize:25,fontWeight:'900',color:'#17324d'},label:{fontSize:13,fontWeight:'900',color:'#344054',textAlign:'right',marginTop:9,marginBottom:5},input:{borderWidth:1,borderColor:'#d0d5dd',borderRadius:12,padding:11,backgroundColor:'#fff',color:'#101828'},actions:{flexDirection:'row-reverse',gap:8,marginTop:8},primary:{flex:1,backgroundColor:'#17324d',borderRadius:12,padding:12,alignItems:'center'},primaryText:{color:'#fff',fontWeight:'900'},danger:{flex:1,backgroundColor:'#fff0ee',borderRadius:12,padding:12,alignItems:'center',borderWidth:1,borderColor:'#fecdca'},dangerText:{color:'#d92d20',fontWeight:'900'},secondary:{borderWidth:1,borderColor:'#d0d5dd',borderRadius:12,padding:12,alignItems:'center',marginTop:8},secondaryText:{color:'#17324d',fontWeight:'900'},badges:{color:'#475467',textAlign:'right',lineHeight:22},reset:{padding:13,alignItems:'center',marginTop:10},resetText:{color:'#d92d20',fontWeight:'900'},rule:{borderTopWidth:1,borderTopColor:'#eaecf0',paddingVertical:9},ruleTitle:{fontWeight:'900',color:'#344054',textAlign:'right'},empty:{color:'#667085',textAlign:'center',padding:8}});
+function Editor({title,fields,values,setValues,onAdd,multiline=[]}:{title:string;fields:[string,string][];values:any;setValues:(v:any)=>void;onAdd:()=>void;multiline?:string[]}){return <View style={styles.card}><Text style={styles.sectionTitle}>{title}</Text>{fields.map(([label,key])=><View key={key}><Text style={styles.label}>{label}</Text><TextInput value={values[key]} onChangeText={v=>setValues({...values,[key]:v})} style={[styles.input,multiline.includes(key)&&styles.multi]} multiline={multiline.includes(key)} textAlign="right" keyboardType={['target','reward'].includes(key)?'number-pad':'default'}/>)}</View>)}<Pressable style={styles.primaryWide} onPress={onAdd}><Text style={styles.primaryText}>＋ إضافة الآن</Text></Pressable></View>}
+function List({title,items,ids,onRemove}:{title:string;items:string[];ids:string[];onRemove:(id:string)=>void}){return <View style={styles.card}><Text style={styles.sectionTitle}>{title} ({items.length})</Text>{items.length===0&&<Text style={styles.empty}>لا يوجد محتوى مضاف بعد.</Text>}{items.map((x,i)=><View key={ids[i]} style={styles.listRow}><Text style={styles.listText}>{x}</Text><Pressable onPress={()=>Alert.alert('حذف المحتوى','هل تريد الحذف؟',[{text:'إلغاء',style:'cancel'},{text:'حذف',style:'destructive',onPress:()=>onRemove(ids[i])}])}><Text style={styles.delete}>حذف</Text></Pressable></View>)}</View>}
+function Stat({label,value}:{label:string;value:string}){return <View style={styles.stat}><Text style={styles.statValue}>{value}</Text><Text style={styles.small}>{label}</Text></View>}
+const styles=StyleSheet.create({safe:{flex:1,backgroundColor:'#f4f7fb'},container:{padding:18,paddingBottom:45},back:{color:'#356ae6',fontWeight:'800',marginBottom:12,textAlign:'right'},title:{fontSize:26,fontWeight:'900',color:'#14213d',textAlign:'right'},subtitle:{fontSize:13,color:'#667085',textAlign:'right',marginTop:4,marginBottom:14},tabs:{flexDirection:'row-reverse',gap:8,marginBottom:13},tab:{flex:1,padding:12,borderRadius:13,backgroundColor:'#fff',borderWidth:1,borderColor:'#eaecf0',alignItems:'center'},tabActive:{backgroundColor:'#17324d',borderColor:'#17324d'},tabText:{fontWeight:'900',color:'#475467'},tabTextActive:{color:'#fff'},analyticsButton:{backgroundColor:'#356ae6',borderRadius:17,padding:15,marginBottom:13},analyticsTitle:{color:'#fff',fontSize:16,fontWeight:'900',textAlign:'right'},analyticsText:{color:'#eaf0ff',fontSize:11,textAlign:'right',marginTop:5,lineHeight:18},statsRow:{flexDirection:'row-reverse',gap:8,marginBottom:12},stat:{flex:1,backgroundColor:'#fff',borderRadius:16,padding:13,alignItems:'center',borderWidth:1,borderColor:'#eaecf0'},statValue:{fontSize:20,fontWeight:'900',color:'#17324d'},small:{fontSize:11,color:'#667085',marginTop:3,lineHeight:18},challenge:{backgroundColor:'#17324d',borderRadius:18,padding:16,marginBottom:14},challengeTitle:{color:'#fff',fontSize:17,fontWeight:'900',textAlign:'right'},challengeText:{color:'#e6eef8',fontSize:12,textAlign:'right',marginTop:5},section:{fontSize:19,fontWeight:'900',color:'#14213d',textAlign:'right',marginBottom:9},student:{backgroundColor:'#fff',borderRadius:16,padding:14,marginBottom:8,flexDirection:'row-reverse',alignItems:'center',borderWidth:1,borderColor:'#eaecf0'},studentSelected:{borderColor:'#356ae6',borderWidth:2},name:{fontSize:16,fontWeight:'900',color:'#14213d',textAlign:'right'},chevron:{fontSize:28,color:'#98a2b3'},card:{backgroundColor:'#fff',borderRadius:18,padding:16,marginTop:8,marginBottom:12,borderWidth:1,borderColor:'#eaecf0'},sectionTitle:{fontSize:18,fontWeight:'900',color:'#14213d',textAlign:'right',marginBottom:10},highlight:{backgroundColor:'#eef4f8',borderRadius:14,padding:13,alignItems:'center',marginBottom:10},big:{fontSize:25,fontWeight:'900',color:'#17324d'},label:{fontSize:13,fontWeight:'900',color:'#344054',textAlign:'right',marginTop:9,marginBottom:5},input:{borderWidth:1,borderColor:'#d0d5dd',borderRadius:12,padding:11,backgroundColor:'#fff',color:'#101828',minHeight:44},multi:{minHeight:85,textAlignVertical:'top'},actions:{flexDirection:'row-reverse',gap:8,marginTop:8},primary:{flex:1,backgroundColor:'#17324d',borderRadius:12,padding:12,alignItems:'center'},primaryWide:{backgroundColor:'#17324d',borderRadius:12,padding:13,alignItems:'center',marginTop:12},primaryText:{color:'#fff',fontWeight:'900'},danger:{flex:1,backgroundColor:'#fff0ee',borderRadius:12,padding:12,alignItems:'center',borderWidth:1,borderColor:'#fecdca'},dangerText:{color:'#d92d20',fontWeight:'900'},secondary:{borderWidth:1,borderColor:'#d0d5dd',borderRadius:12,padding:12,alignItems:'center',marginTop:8},secondaryText:{color:'#17324d',fontWeight:'900'},badges:{color:'#475467',textAlign:'right',lineHeight:22},reset:{padding:13,alignItems:'center',marginTop:10},resetText:{color:'#d92d20',fontWeight:'900'},rule:{borderTopWidth:1,borderTopColor:'#eaecf0',paddingVertical:9},ruleTitle:{fontWeight:'900',color:'#344054',textAlign:'right'},empty:{color:'#667085',textAlign:'center',padding:8},info:{backgroundColor:'#eef4ff',borderRadius:16,padding:15,marginBottom:10},infoTitle:{fontWeight:'900',fontSize:16,color:'#17324d',textAlign:'right',marginBottom:4},listRow:{borderTopWidth:1,borderTopColor:'#eaecf0',paddingVertical:10,flexDirection:'row-reverse',alignItems:'center',gap:10},listText:{flex:1,color:'#344054',fontSize:12,textAlign:'right',lineHeight:18},delete:{color:'#d92d20',fontWeight:'900',fontSize:12}});
