@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { getGradeExamAttempts, type CloudAttempt } from '../src/assessmentCloud';
-import { Card, Page, Section, C } from '../src/ui';
+import { Action, Card, Page, Section, C } from '../src/ui';
 
 function pct(score:number,max:number){return max>0?Math.round((score/max)*100):0;}
 function avg(items:CloudAttempt[]){return items.length?Math.round(items.reduce((s,x)=>s+pct(x.autoScore,x.maxAutoScore),0)/items.length):0;}
@@ -20,6 +20,7 @@ export default function TeacherAnalyticsScreen(){
  const overall=avg(attempts); const needHelp=students.filter(s=>s.score<60).length;
  return <Page title="تحليل أداء الطلاب" subtitle={`${grade} • لوحة المعلم`} onBack={()=>router.back()}>
   <ScrollView refreshControl={<RefreshControl refreshing={loading} onRefresh={load}/>} showsVerticalScrollIndicator={false}>
+   <Action label="📋 مراجعة وتسحيح الواجبات" icon="" onPress={()=>router.push({pathname:'/teacher-homework',params:{role:'teacher',grade}})} />
    <Card><Text style={{fontSize:20,fontWeight:'900',color:C.navy,textAlign:'right'}}>📊 ملخص المستوى</Text><Text style={{color:C.muted,textAlign:'right',marginTop:5}}>تحليل الاختبارات المسجلة سحابيًا للطلاب في هذا المستوى.</Text><View style={{flexDirection:'row-reverse',gap:8,marginTop:14}}><Stat label="متوسط المستوى" value={`${overall}%`}/><Stat label="الطلاب" value={`${students.length}`}/><Stat label="يحتاجون متابعة" value={`${needHelp}`}/></View></Card>
    {error?<Card><Text style={{color:'#b42318',textAlign:'right',fontWeight:'800'}}>{error}</Text></Card>:null}
    <Section title="المواد الدراسية"><Card>{subjectStats.length?subjectStats.map((s,i)=><View key={s.subject} style={{marginBottom:i===subjectStats.length-1?0:14}}><View style={{flexDirection:'row-reverse',justifyContent:'space-between'}}><Text style={{fontWeight:'900',color:C.navy}}>{s.subject}</Text><Text style={{fontWeight:'900',color:s.score>=80?C.green:s.score<60?'#b42318':C.navy}}>{s.score}%</Text></View><View style={{height:9,borderRadius:9,backgroundColor:'#edf0f4',marginTop:7,overflow:'hidden'}}><View style={{height:9,width:`${s.score}%`,backgroundColor:s.score>=80?C.green:s.score<60?'#d92d20':C.blue}}/></View><Text style={{fontSize:11,color:C.muted,textAlign:'right',marginTop:4}}>{s.count} محاولة اختبار</Text></View>):<Text style={{textAlign:'center',color:C.muted}}>{loading?'جارٍ التحليل...':'لا توجد محاولات اختبار مسجلة بعد.'}</Text>}</Card></Section>
