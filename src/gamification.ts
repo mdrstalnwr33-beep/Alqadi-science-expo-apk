@@ -17,8 +17,10 @@ export type GamificationState = {
 };
 
 type MistakeStats = { attempts: number; wrong: number; correct: number; lastWrongAt?: number };
+type ReviewStats = MistakeStats & { dueAt: number; intervalDays: number };
 const key = (student: string) => `science-gamification:${student}`;
 const mistakesKey = (student: string) => `science-mistakes:${student}`;
+const reviewKey = (student: string) => `science-review:${student}`;
 const empty: GamificationState = { xp: 0, level: 1, streak: 0, answered: 0, correct: 0, completedExams: 0, badges: [], challengeProgress: 0, challengeCompleted: false, challengeRewarded: false, consecutiveCorrect: 0 };
 export const levelFromXp = (xp: number) => Math.floor(xp / 250) + 1;
 export const xpForNextLevel = (level: number) => level * 250;
@@ -87,11 +89,17 @@ export async function recordExamResult(student: string, score: number, maxScore:
 
 export async function recordQuestionAnswers(student: string, answers: { id: string; correct: boolean }[]) {
   const stats = await readJson<Record<string, MistakeStats>>(mistakesKey(student), {});
+  const reviews = await readJson<Record<string, ReviewStats>>(reviewKey(student), {});
+  const now = Date.now();
   for (const item of answers) {
     const old = stats[item.id] || { attempts: 0, wrong: 0, correct: 0 };
-    stats[item.id] = { attempts: old.attempts + 1, wrong: old.wrong + (item.correct ? 0 : 1), correct: old.correct + (item.correct ? 1 : 0), lastWrongAt: item.correct ? old.lastWrongAt : Date.now() };
+    stats[item.id] = { attempts: old.attempts + 1, wrong: old.wrong + (item.correct ? 0 : 1), correct: old.correct + (item.correct ? 1 : 0), lastWrongAt: item.correct ? old.lastWrongAt : now };
+    const previous = reviews[item.id] || { attempts: 0, wrong: 0, correct: 0, dueAt: now, intervalDays: 0 };
+    const intervalDays = item.correct ? (previous.intervalDays <= 0 ? 3 : Math.min(30, previous.intervalDays * 2)) : 1;
+    reviews[item.id] = { attempts: previous.attempts + 1, wrong: previous.wrong + (item.correct ? 0 : 1), correct: previous.correct + (item.correct ? 1 : 0), lastWrongAt: item.correct ? previous.lastWrongAt : now, intervalDays, dueAt: now + intervalDays * 86400000 };
   }
   await writeJson(mistakesKey(student), stats);
+  await writeJson(reviewKey(student), reviews);
   return stats;
 }
 
@@ -104,6 +112,27 @@ export async function getAdaptiveQuestionIds(student: string, ids: string[], cou
     const priorityB = sb.attempts ? sb.wrong / sb.attempts : 1.2;
     return priorityB - priorityA || (sa.attempts - sb.attempts);
   }).slice(0, count);
+}
+
+export async function getReviewQuestionIds(student: string, ids: string[], count: number) {
+  const reviews = await readJson<Record<string, ReviewStats>>(reviewKey(student), {});
+  const now = Date.now();
+  return [...ids].sort((a, b) => {
+    const sa = reviews[a]; const sb = reviews[b];
+    const dueA = sa?.dueAt ?? 0; const dueB = sb?.dueAt ?? 0;
+    const overdueA = dueA <= now ? 1 : 0; const overdueB = dueB <= now ? 1 : 0;
+    if (overdueA !== overdueB) return overdueB - overdueA;
+    if (overdueA) return dueA - dueB;
+    return dueA - dueB;
+  }).slice(0, count);
+}
+
+export async function getReviewSummary(student: string, ids: string[]) {
+  const reviews = await readJson<Record<string, ReviewStats>>(reviewKey(student), {});
+  const now = Date.now();
+  const due = ids.filter(id => (reviews[id]?.dueAt ?? 0) <= now).length;
+  const scheduled = ids.filter(id => reviews[id]).length;
+  return { due, scheduled, total: ids.length };
 }
 
 export async function touchStudyDay(student: string) {
