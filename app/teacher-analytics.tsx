@@ -1,0 +1,34 @@
+import { router, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { getGradeExamAttempts, type CloudAttempt } from '../src/assessmentCloud';
+import { Card, Page, Section, C } from '../src/ui';
+
+function pct(score:number,max:number){return max>0?Math.round((score/max)*100):0;}
+function avg(items:CloudAttempt[]){return items.length?Math.round(items.reduce((s,x)=>s+pct(x.autoScore,x.maxAutoScore),0)/items.length):0;}
+
+export default function TeacherAnalyticsScreen(){
+ const p=useLocalSearchParams<{grade?:string;subject?:string}>();
+ const grade=p.grade||'المستوى';
+ const [attempts,setAttempts]=useState<CloudAttempt[]>([]);
+ const [loading,setLoading]=useState(true);
+ const [error,setError]=useState('');
+ const load=useCallback(async()=>{setLoading(true);setError('');try{setAttempts(await getGradeExamAttempts(grade,p.subject||undefined));}catch{setError('تعذر تحميل بيانات التحليل. تأكد من اتصال الإنترنت وقواعد Firebase.');}finally{setLoading(false);}},[grade,p.subject]);
+ useEffect(()=>{load();},[load]);
+ const students=useMemo(()=>{const m=new Map<string,{name:string;code:string;attempts:CloudAttempt[]}>();for(const a of attempts){const key=a.studentCode||a.studentName;if(!m.has(key))m.set(key,{name:a.studentName||'طالب',code:a.studentCode||'',attempts:[]});m.get(key)!.attempts.push(a);}return [...m.values()].map(s=>({...s,score:avg(s.attempts),count:s.attempts.length})).sort((a,b)=>b.score-a.score);},[attempts]);
+ const subjectStats=useMemo(()=>{const m=new Map<string,CloudAttempt[]>();for(const a of attempts){const key=a.subject||'غير محدد';if(!m.has(key))m.set(key,[]);m.get(key)!.push(a);}return [...m.entries()].map(([subject,items])=>({subject,score:avg(items),count:items.length})).sort((a,b)=>b.score-a.score);},[attempts]);
+ const overall=avg(attempts); const passed=students.filter(s=>s.score>=80).length; const needHelp=students.filter(s=>s.score<60).length;
+ return <Page title="تحليل أداء الطلاب" subtitle={`${grade} • لوحة المعلم`} onBack={()=>router.back()}>
+  <ScrollView refreshControl={<RefreshControl refreshing={loading} onRefresh={load}/>} showsVerticalScrollIndicator={false}>
+   <Card><Text style={{fontSize:20,fontWeight:'900',color:C.navy,textAlign:'right'}}>📊 ملخص المستوى</Text><Text style={{color:C.muted,textAlign:'right',marginTop:5}}>تحليل الاختبارات المسجلة سحابيًا للطلاب في هذا المستوى.</Text><View style={{flexDirection:'row-reverse',gap:8,marginTop:14}}><Stat label="متوسط المستوى" value={`${overall}%`}/><Stat label="الطلاب" value={`${students.length}`}/><Stat label="يحتاجون متابعة" value={`${needHelp}`}/></View></Card>
+   {error?<Card><Text style={{color:'#b42318',textAlign:'right',fontWeight:'800'}}>{error}</Text></Card>:null}
+   <Section title="المواد الدراسية"><Card>{subjectStats.length?subjectStats.map((s,i)=><View key={s.subject} style={{marginBottom:i===subjectStats.length-1?0:14}}><View style={{flexDirection:'row-reverse',justifyContent:'space-between'}}><Text style={{fontWeight:'900',color:C.navy}}>{s.subject}</Text><Text style={{fontWeight:'900',color:s.score>=80?C.green:s.score<60?'#b42318':C.navy}}>{s.score}%</Text></View><View style={{height:9,borderRadius:9,backgroundColor:'#edf0f4',marginTop:7,overflow:'hidden'}}><View style={{height:9,width:`${s.score}%`,backgroundColor:s.score>=80?C.green:s.score<60?'#d92d20':C.blue}}/></View><Text style={{fontSize:11,color:C.muted,textAlign:'right',marginTop:4}}>{s.count} محاولة اختبار</Text></View>):<Text style={{textAlign:'center',color:C.muted}}>{loading?'جارٍ التحليل...':'لا توجد محاولات اختبار مسجلة بعد.'}</Text>}</Card></Section>
+   <Section title="الطلاب المتفوقون"><Card>{students.length?students.slice(0,5).map((s,i)=><StudentRow key={s.code||s.name} rank={i+1} name={s.name} score={s.score} count={s.count}/>):<Text style={{textAlign:'center',color:C.muted}}>لا توجد بيانات كافية.</Text>}</Card></Section>
+   <Section title="طلاب يحتاجون متابعة"><Card>{students.filter(s=>s.score<60).slice(0,8).map(s=><View key={s.code||s.name} style={{paddingVertical:10,borderBottomWidth:1,borderBottomColor:'#eef0f3'}}><View style={{flexDirection:'row-reverse',justifyContent:'space-between'}}><Text style={{fontWeight:'900',color:C.navy}}>{s.name}</Text><Text style={{fontWeight:'900',color:'#b42318'}}>{s.score}%</Text></View><Text style={{fontSize:11,color:C.muted,textAlign:'right',marginTop:3}}>عدد المحاولات: {s.count} • يحتاج مراجعة ودعم إضافي</Text></View>)}{students.filter(s=>s.score<60).length===0&&<Text style={{textAlign:'center',color:C.green,fontWeight:'800'}}>ممتاز! لا يوجد طالب تحت 60% حاليًا.</Text>}</Card></Section>
+   <Section title="التقدم عبر الاختبارات"><Card>{attempts.slice().sort((a,b)=>a.submittedAt-b.submittedAt).slice(-8).map((a,i)=><View key={`${a.id}-${i}`} style={{paddingVertical:9,borderBottomWidth:i===Math.min(7,attempts.length-1)?0:1,borderBottomColor:'#eef0f3'}}><View style={{flexDirection:'row-reverse',justifyContent:'space-between'}}><Text style={{fontWeight:'800',color:C.navy,flex:1,textAlign:'right'}}>{a.studentName} • {a.examTitle}</Text><Text style={{fontWeight:'900',color:C.green,marginLeft:8}}>{pct(a.autoScore,a.maxAutoScore)}%</Text></View><Text style={{fontSize:10,color:C.muted,textAlign:'right',marginTop:3}}>{a.subject} • {new Date(a.submittedAt).toLocaleDateString('ar-YE')}</Text></View>)}{attempts.length===0&&<Text style={{textAlign:'center',color:C.muted}}>ستظهر حركة الاختبارات هنا بعد تسجيل محاولات الطلاب.</Text>}</Card></Section>
+   <Card><Text style={{fontWeight:'900',color:C.navy,textAlign:'right'}}>💡 ملاحظة</Text><Text style={{color:C.muted,textAlign:'right',lineHeight:22,marginTop:5}}>هذا التحليل يعتمد على محاولات الاختبارات المحفوظة في Firebase، لذلك يستطيع المعلم متابعة الطلاب من جهازه دون الوصول إلى بيانات الجهاز المحلية للطالب.</Text></Card>
+  </ScrollView>
+ </Page>;
+}
+function Stat({label,value}:{label:string;value:string}){return <View style={{flex:1,backgroundColor:'#f5f7fb',borderRadius:12,padding:10,alignItems:'center'}}><Text style={{fontSize:20,fontWeight:'900',color:C.navy}}>{value}</Text><Text style={{fontSize:10,color:C.muted,textAlign:'center',marginTop:3}}>{label}</Text></View>}
+function StudentRow({rank,name,score,count}:{rank:number;name:string;score:number;count:number}){return <View style={{flexDirection:'row-reverse',alignItems:'center',paddingVertical:10,borderBottomWidth:1,borderBottomColor:'#eef0f3'}}><Text style={{fontSize:20,width:35,textAlign:'center'}}>{rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':'⭐'}</Text><View style={{flex:1,marginHorizontal:8}}><Text style={{fontWeight:'900',color:C.navy,textAlign:'right'}}>{name}</Text><Text style={{fontSize:10,color:C.muted,textAlign:'right',marginTop:2}}>{count} اختبار</Text></View><Text style={{fontWeight:'900',fontSize:17,color:C.green}}>{score}%</Text></View>}
