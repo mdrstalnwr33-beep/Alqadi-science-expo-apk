@@ -9,16 +9,60 @@ export type GamificationState = {
   correct: number;
   completedExams: number;
   badges: string[];
+  challengeDate?: string;
+  challengeProgress: number;
+  challengeCompleted: boolean;
+  challengeRewarded: boolean;
+  consecutiveCorrect: number;
 };
 
+type MistakeStats = { attempts: number; wrong: number; correct: number; lastWrongAt?: number };
 const key = (student: string) => `science-gamification:${student}`;
-const empty: GamificationState = { xp: 0, level: 1, streak: 0, answered: 0, correct: 0, completedExams: 0, badges: [] };
+const mistakesKey = (student: string) => `science-mistakes:${student}`;
+const empty: GamificationState = { xp: 0, level: 1, streak: 0, answered: 0, correct: 0, completedExams: 0, badges: [], challengeProgress: 0, challengeCompleted: false, challengeRewarded: false, consecutiveCorrect: 0 };
 export const levelFromXp = (xp: number) => Math.floor(xp / 250) + 1;
 export const xpForNextLevel = (level: number) => level * 250;
+
+export const dailyChallenges = [
+  { id: 'lab', icon: '🧪', title: 'تحدي المختبر', text: 'أجب عن 5 أسئلة علوم اليوم', target: 5, reward: 50 },
+  { id: 'speed', icon: '⚡', title: 'تحدي السرعة', text: 'حقق 3 إجابات صحيحة متتالية', target: 3, reward: 40 },
+  { id: 'discoverer', icon: '🔬', title: 'مكتشف العلوم', text: 'أكمل اختبارًا واحدًا اليوم', target: 1, reward: 60 },
+];
+
+export function getDailyChallenge(date = new Date()) {
+  const day = Math.floor(new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime() / 86400000);
+  return dailyChallenges[((day % dailyChallenges.length) + dailyChallenges.length) % dailyChallenges.length];
+}
 
 export async function getGamification(student: string) {
   const state = await readJson<GamificationState>(key(student), empty);
   return { ...empty, ...state, level: levelFromXp(state.xp) };
+}
+
+async function updateChallenge(student: string, answeredToday: number, correctToday: number, completedExam: boolean) {
+  const old = await getGamification(student);
+  const today = new Date().toISOString().slice(0, 10);
+  const challenge = getDailyChallenge();
+  const sameDay = old.challengeDate === today;
+  let progress = sameDay ? old.challengeProgress : 0;
+  let completed = sameDay ? old.challengeCompleted : false;
+  let rewarded = sameDay ? old.challengeRewarded : false;
+  if (!completed) {
+    if (challenge.id === 'lab') progress = Math.min(challenge.target, progress + answeredToday);
+    if (challenge.id === 'speed') progress = Math.max(progress, Math.min(challenge.target, correctToday));
+    if (challenge.id === 'discoverer') progress = Math.min(challenge.target, progress + (completedExam ? 1 : 0));
+    completed = progress >= challenge.target;
+  }
+  let xp = old.xp;
+  const badges = [...old.badges];
+  if (completed && !rewarded) {
+    xp += challenge.reward;
+    rewarded = true;
+    if (!badges.includes('بطل تحدي اليوم')) badges.push('بطل تحدي اليوم');
+  }
+  const next = { ...old, xp, level: levelFromXp(xp), challengeDate: today, challengeProgress: progress, challengeCompleted: completed, challengeRewarded: rewarded, badges };
+  await writeJson(key(student), next);
+  return next;
 }
 
 export async function recordExamResult(student: string, score: number, maxScore: number) {
@@ -36,9 +80,30 @@ export async function recordExamResult(student: string, score: number, maxScore:
   if (xp >= 250) add('عالم ناشئ');
   if (streak >= 3) add('سلسلة 3 أيام');
   if (score === maxScore && maxScore > 0) add('درجة كاملة');
-  const next: GamificationState = { xp, level: levelFromXp(xp), streak, lastStudyDate: today, answered: old.answered + answered, correct: old.correct + correct, completedExams: old.completedExams + 1, badges };
+  const next: GamificationState = { ...old, xp, level: levelFromXp(xp), streak, lastStudyDate: today, answered: old.answered + answered, correct: old.correct + correct, completedExams: old.completedExams + 1, badges };
   await writeJson(key(student), next);
-  return next;
+  return updateChallenge(student, answered, correct, true);
+}
+
+export async function recordQuestionAnswers(student: string, answers: { id: string; correct: boolean }[]) {
+  const stats = await readJson<Record<string, MistakeStats>>(mistakesKey(student), {});
+  for (const item of answers) {
+    const old = stats[item.id] || { attempts: 0, wrong: 0, correct: 0 };
+    stats[item.id] = { attempts: old.attempts + 1, wrong: old.wrong + (item.correct ? 0 : 1), correct: old.correct + (item.correct ? 1 : 0), lastWrongAt: item.correct ? old.lastWrongAt : Date.now() };
+  }
+  await writeJson(mistakesKey(student), stats);
+  return stats;
+}
+
+export async function getAdaptiveQuestionIds(student: string, ids: string[], count: number) {
+  const stats = await readJson<Record<string, MistakeStats>>(mistakesKey(student), {});
+  return [...ids].sort((a, b) => {
+    const sa = stats[a] || { attempts: 0, wrong: 0 };
+    const sb = stats[b] || { attempts: 0, wrong: 0 };
+    const priorityA = sa.attempts ? sa.wrong / sa.attempts : 1.2;
+    const priorityB = sb.attempts ? sb.wrong / sb.attempts : 1.2;
+    return priorityB - priorityA || (sa.attempts - sb.attempts);
+  }).slice(0, count);
 }
 
 export async function touchStudyDay(student: string) {
@@ -46,13 +111,7 @@ export async function touchStudyDay(student: string) {
   const today = new Date().toISOString().slice(0, 10);
   if (old.lastStudyDate === today) return old;
   const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-  const next = { ...old, streak: old.lastStudyDate === yesterday ? old.streak + 1 : 1, lastStudyDate: today };
+  const next = { ...old, streak: old.lastStudyDate === yesterday ? old.streak + 1 : 1, lastStudyDate: today, challengeDate: today, challengeProgress: 0, challengeCompleted: false, challengeRewarded: false, consecutiveCorrect: 0 };
   await writeJson(key(student), next);
   return next;
 }
-
-export const dailyChallenges = [
-  { icon: '🧪', title: 'تحدي المختبر', text: 'أجب عن 5 أسئلة علوم اليوم', reward: 50 },
-  { icon: '⚡', title: 'تحدي السرعة', text: 'أجب بسرعة وحافظ على 3 إجابات متتالية', reward: 40 },
-  { icon: '🔬', title: 'مكتشف العلوم', text: 'راجع درسًا واحدًا ثم اختبر نفسك', reward: 60 },
-];
