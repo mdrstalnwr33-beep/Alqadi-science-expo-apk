@@ -6,6 +6,7 @@ import { grades } from '../src/data';
 import { claimStudentDevice, getCloudStudent, getCloudTeacherCode } from '../src/cloud';
 import { getDeviceId } from '../src/device';
 import { readJson, setSession, storageKeys, type LocalStudent } from '../src/storage';
+import { writeJson } from '../src/storage';
 
 const INITIAL_TEACHER_CODE = '900001';
 const normalizeCode=(value:string)=>value.replace(/\D/g,'').slice(0,6);
