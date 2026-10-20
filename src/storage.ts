@@ -27,6 +27,7 @@ export const storageKeys = {
   honors: 'honor-board',
   downloads: 'offline-lessons',
   teacherProfile: 'teacher-profile',
+  teacherBiometric: 'teacher-biometric',
   examAttempt: (student: string, exam: string) => `exam-attempt:${student}:${exam}`,
   homeworkSubmission: (student: string, homework: string) => `homework-submission:${student}:${homework}`,
   results: (student: string) => `student-results:${student}`,
