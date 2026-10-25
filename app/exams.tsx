@@ -9,7 +9,7 @@ import { Action, Card, Page, Section, C } from '../src/ui';
 export default function ExamsScreen(){
  const p=useLocalSearchParams<{role?:string;name?:string;grade?:string;subject?:string;code?:string}>();
  const [custom,setCustom]=useState<CustomExam[]>([]); const [cloud,setCloud]=useState<CustomExam[]>([]);
- useEffect(()=>{getCustomExams().then(setCustom); if(p.grade&&p.subject)getCloudExams(p.grade,p.subject).then(setCloud).catch(()=>setCloud([]));},[p.grade,p.subject]);
+ useEffect(()=>{let alive=true;getCustomExams().then(x=>{if(alive)setCustom(x)});if(p.grade){const selected=p.subject?[p.subject]:['الكيمياء','الفيزياء','الأحياء'];Promise.all(selected.map(s=>getCloudExams(p.grade!,s).catch(()=>[]))).then(groups=>{if(alive)setCloud(groups.flat())});}else setCloud([]);return()=>{alive=false}},[p.grade,p.subject]);
  const merged=new Map<string,CustomExam>();
  [...exams,...custom,...cloud].forEach(e=>merged.set(String(e.id),e));
  const list=[...merged.values()].filter(e=>(!p.subject||e.subject===p.subject)&&(!p.grade||e.grade===p.grade));
