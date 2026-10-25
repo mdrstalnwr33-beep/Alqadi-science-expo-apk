@@ -1,9 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import * as Sharing from 'expo-sharing';
-import * as IntentLauncher from 'expo-intent-launcher';
 import { File, Paths } from 'expo-file-system';
-import { Platform, Alert, Pressable, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, Text, TextInput, View } from 'react-native';
 import { useEffect, useState } from 'react';
 import { books, subjects } from '../src/data';
 import { getBookLinks, saveBookLink, type CloudBookLink } from '../src/contentCloud';
@@ -25,7 +23,7 @@ function normalizePdfUrl(input:string){
   return url;
 }
 
-async function openPdf(url:string){
+async function openRemotePdf(url:string){
   await WebBrowser.openBrowserAsync(url,{enableBarCollapsing:true});
 }
 
@@ -49,38 +47,11 @@ export default function BooksScreen(){
    localPath=local;
    const next={...cached,[item.id]:local};setCached(next);await writeJson(cacheKey,next);
 
-   const file=new File(local);
-   // First try Expo's native preview. Android uses ACTION_VIEW when a PDF app exists.
-   try{
-     await file.preview({title:item.name,mimeType:'application/pdf'});
-     return;
-   }catch{
-     // Some Android builds do not complete preview correctly. Explicitly launch
-     // ACTION_VIEW with the file's content:// URI and grant read permission.
-     if(Platform.OS==='android'){
-       try{
-         await IntentLauncher.startActivityAsync('android.intent.action.VIEW',{
-           data:file.contentUri,
-           type:'application/pdf',
-           flags:1,
-         });
-         return;
-       }catch{
-         // Continue to the open-with fallback below.
-       }
-     }
-     try{
-       const sharingAvailable=await Sharing.isAvailableAsync();
-       if(!sharingAvailable)throw new Error('sharing-unavailable');
-       await Sharing.shareAsync(local,{mimeType:'application/pdf',dialogTitle:'فتح الملزمة المحفوظة'});
-       return;
-     }catch{
-       Alert.alert('الملف محفوظ','تم حفظ الملزمة على الجهاز، لكن الهاتف لم يجد تطبيقًا لفتح PDF. ثبّت قارئ PDF ثم اضغط «فتح الملف المحفوظ» مرة أخرى.');
-     }
-   }
+   // نفس فكرة تطبيق الأكاديمية: افتح الملف داخل شاشة PDF داخل التطبيق.
+   router.push({pathname:'/pdf-viewer',params:{uri:local,title:item.name,bookId:item.id}});
   }catch(error){
-   if(localPath){Alert.alert('الملف محفوظ','تم حفظ الملزمة على الجهاز، ولن نعيد تنزيلها. تعذر فتحها تلقائيًا. تأكد من وجود قارئ PDF ثم حاول مرة أخرى.');}
-   else {try{await openPdf(original);Alert.alert('فتح الرابط','تعذر تنزيل نسخة محلية، فتم فتح الرابط داخل التطبيق.');}catch{Alert.alert('تعذر فتح الملف','تحقق من الرابط وصلاحية الملف ثم حاول مرة أخرى.');}}
+   if(localPath){Alert.alert('الملف محفوظ','تم حفظ الملزمة على الجهاز، لكن تعذر فتح عارض PDF داخل التطبيق.');}
+   else {try{await openRemotePdf(original);Alert.alert('فتح الرابط','تعذر تنزيل نسخة محلية، فتم فتح الرابط داخل التطبيق.');}catch{Alert.alert('تعذر فتح الملف','تحقق من الرابط وصلاحية الملف ثم حاول مرة أخرى.');}}
   }finally{setBusy(null);}};
  const list=books.filter(b=>(!subject||b.subject===subject)&&(!grade||b.grade===grade));
  return <Page title={subject||'الكتب والملازم'} subtitle={grade?`${grade} • ${subject||'العلوم'}`:'اختر المادة الدراسية'} onBack={()=>router.back()}>
