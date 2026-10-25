@@ -4,20 +4,23 @@ import { Alert, Pressable, Text, TextInput } from 'react-native';
 import * as ScreenCapture from 'expo-screen-capture';
 import { exams, type ExamQuestion } from '../src/data';
 import { getCustomExams, type CustomExam } from '../src/assessmentStore';
+import { getCloudExams } from '../src/contentCloud';
 import { readJson, storageKeys, writeJson } from '../src/storage';
 import { getStudentExamAttempts, saveExamAttempt } from '../src/assessmentCloud';
 import { recordExamResult, recordQuestionAnswers } from '../src/gamification';
 import { Card, Page, Section, C } from '../src/ui';
 
 export default function ExamScreen(){
- const p=useLocalSearchParams<{id?:string;role?:string;name?:string;grade?:string;code?:string}>();
+ const p=useLocalSearchParams<{id?:string;role?:string;name?:string;grade?:string;subject?:string;code?:string}>();
  const [custom,setCustom]=useState<CustomExam[]>([]);
+ const [cloud,setCloud]=useState<CustomExam[]>([]);
  const [answers,setAnswers]=useState<Record<string,string>>({});
  const [submitted,setSubmitted]=useState(false);
  const [checking,setChecking]=useState(true);
  const [previousAttempt,setPreviousAttempt]=useState(false);
  useEffect(()=>{getCustomExams().then(setCustom);},[]);
- const exam = [...exams,...custom].find(e=>e.id===p.id) || exams[0];
+ useEffect(()=>{if(p.grade&&p.subject)getCloudExams(p.grade,p.subject).then(items=>setCloud(items as CustomExam[])).catch(()=>setCloud([]));},[p.grade,p.subject]);
+ const exam = [...exams,...custom,...cloud].find(e=>e.id===p.id) || exams.find(e=>e.id===p.id) || exams[0];
  const studentKey=(p.code||p.name||'طالب').trim();
  const key=storageKeys.examAttempt(studentKey,exam.id);
  const teacher=p.role==='teacher';
