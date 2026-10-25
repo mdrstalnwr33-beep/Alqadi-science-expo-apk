@@ -6,7 +6,7 @@ import { getCloudStudent } from '../src/cloud';
 import { clearSession, getSession } from '../src/storage';
 import { getStudentNotices } from '../src/contentCloud';
 
-const studentMain = [['📖','الدروس','الدروس اليومية','/lessons'],['📝','الواجبات','واجباتك المطلوبة','/homework'],['🧪','الاختبارات','اختبر مستواك','/exams'],['📊','نتائجي','درجاتي وتقدمي','/results']];
+const studentMain = [['📖','الدروس','الدروس اليومية','/lessons'],['📚','الكتب والملازم','كتب وملازم صفك','/books'],['📝','الواجبات','واجباتك المطلوبة','/homework'],['🧪','الاختبارات','اختبر مستواك','/exams'],['📊','نتائجي','درجاتي وتقدمي','/results']];
 const studentExplore = [['🔬','المختبر العلمي','تجارب واكتشافات','/science-lab'],['🧠','المراجعة الذكية','راجع ما تحتاجه','/review'],['⚡','تحدي السرعة','أسئلة سريعة','/speed-challenge'],['📘','المعجم العلمي','مصطلحات العلوم','/science-glossary']];
 const teacherTools = [['👥','الطلاب','إدارة الصف والطلاب','students'],['📚','المحتوى','الدروس والمواد','content'],['📝','التقييم','الاختبارات والواجبات','assessment'],['📊','التقارير','النتائج والتحليلات','results'],['🎮','التحفيز','XP والشارات والتحديات','gamification'],['👨‍🏫','بيانات الأستاذ','السيرة والمعلومات','about']];
 
