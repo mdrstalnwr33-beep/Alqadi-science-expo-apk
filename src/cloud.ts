@@ -1,6 +1,5 @@
 import { doc, getDoc, setDoc, deleteDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
-import { db, firebaseApp } from './firebase';
-import { getDownloadURL, getStorage, ref, uploadBytes } from 'firebase/storage';
+import { db } from './firebase';
 import type { LocalStudent } from './storage';
 
 const cleanCode = (code:string) => /^\d{6}$/.test(code) ? code : null;
@@ -48,14 +47,23 @@ export async function releaseStudentDevice(code:string,deviceId:string){
  const ref=doc(db,'students',code);
  await runTransaction(db,async tx=>{const snap=await tx.get(ref);if(snap.exists()&&snap.data().activeDeviceId===deviceId)tx.update(ref,{activeDeviceId:'',updatedAt:Date.now()})});
 }
-export async function saveCloudTeacherProfile(profile:{name:string;school:string;bio:string;photo?:string}){await setDoc(doc(db,'publicContent','teacherProfile'),{...profile,updatedAt:Date.now()},{merge:true})}
+
+export async function saveCloudTeacherProfile(profile:{name:string;school:string;bio:string;photo?:string}){
+  const photo = typeof profile.photo === 'string' && profile.photo.length <= 900000 ? profile.photo : undefined;
+  await setDoc(doc(db,'publicContent','teacherProfile'),{...profile,photo,updatedAt:Date.now()},{merge:true});
+}
 export async function getCloudTeacherProfile(){const snap=await getDoc(doc(db,'publicContent','teacherProfile'));return snap.exists()?snap.data():null}
 
+// الصور تُحفظ كصورة JPEG صغيرة داخل Firestore، لذلك لا نعتمد على Firebase Storage ولا على الفوترة.
 export async function uploadTeacherPhoto(uri:string){
   const response=await fetch(uri);
   const blob=await response.blob();
-  const storage=getStorage(firebaseApp);
-  const objectRef=ref(storage,`teacher-profiles/teacher-${Date.now()}.jpg`);
-  await uploadBytes(objectRef,blob,{contentType:'image/jpeg'});
-  return getDownloadURL(objectRef);
+  const reader = new FileReader();
+  const dataUrl:string = await new Promise((resolve,reject)=>{
+    reader.onload=()=>resolve(String(reader.result||''));
+    reader.onerror=()=>reject(new Error('تعذر تحويل الصورة')); 
+    reader.readAsDataURL(blob);
+  });
+  if(dataUrl.length > 900000) throw new Error('image-too-large');
+  return dataUrl;
 }
