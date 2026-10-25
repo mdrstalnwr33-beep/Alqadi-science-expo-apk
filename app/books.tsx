@@ -1,8 +1,9 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
+import * as Sharing from 'expo-sharing';
 import { File, Paths } from 'expo-file-system';
 import { useEffect, useState } from 'react';
-import { Alert, Linking, Pressable, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, Text, TextInput, View } from 'react-native';
 import { books, subjects } from '../src/data';
 import { getBookLinks, saveBookLink, type CloudBookLink } from '../src/contentCloud';
 import { readJson, writeJson } from '../src/storage';
@@ -50,8 +51,15 @@ export default function BooksScreen(){
    }
    localPath=local;
    const next={...cached,[item.id]:local};setCached(next);await writeJson(cacheKey,next);
-   try{await Linking.openURL(local);}
-   catch{Alert.alert('الملف محفوظ','تم حفظ الملزمة على الجهاز، لكن لم يستطع الهاتف فتح ملف PDF. لن نعيد تنزيله. تحقق من وجود قارئ PDF على الجهاز ثم اضغط فتح الملف المحفوظ مجددًا.');}
+   try{
+     const sharingAvailable=await Sharing.isAvailableAsync();
+     if(!sharingAvailable)throw new Error('sharing-unavailable');
+     // Android cannot reliably open app-private file:// URIs with Linking.
+     // Sharing hands the saved PDF to the installed PDF viewer without downloading it again.
+     await Sharing.shareAsync(local,{mimeType:'application/pdf',dialogTitle:'فتح الملزمة المحفوظة'});
+   }catch{
+     Alert.alert('الملف محفوظ','تم حفظ الملزمة على الجهاز، لكن لم يستطع الهاتف فتحها مباشرة. لن نعيد تنزيلها. ثبّت قارئ PDF ثم اضغط «فتح الملف المحفوظ» مرة أخرى.');
+   }
   }catch(error){
    if(localPath){Alert.alert('الملف محفوظ','تعذر فتح الملف المحلي، لكننا احتفظنا بالنسخة المحفوظة ولن نعيد تنزيلها.');}
    else {try{await openPdf(original);Alert.alert('فتح الرابط','تعذر تنزيل نسخة محلية، فتم فتح الرابط داخل التطبيق.');}catch{Alert.alert('تعذر فتح الملف','تحقق من الرابط وصلاحية الملف ثم حاول مرة أخرى.');}}
@@ -60,7 +68,7 @@ export default function BooksScreen(){
  return <Page title={subject||'الكتب والملازم'} subtitle={grade?`${grade} • ${subject||'العلوم'}`:'اختر المادة الدراسية'} onBack={()=>router.back()}>
   {!subject&&<Section title="اختر المادة"><View style={{gap:8}}>{subjects.map(s=><Pressable key={s.name} onPress={()=>router.push({pathname:'/books',params:{...p,subject:s.name}})} style={[styles.card,{borderColor:C.border}]}><Text style={{textAlign:'right',fontWeight:'900',fontSize:16,color:C.navy}}>{s.icon}  {s.name}</Text></Pressable>)}</View></Section>}
   {subject&&teacher&&<Section title="إضافة محتوى"><Card><Text style={{fontSize:17,fontWeight:'900',color:C.navy,textAlign:'right'}}>🔗 إضافة كتاب أو ملزمة</Text><Text style={{fontSize:11,color:C.muted,textAlign:'right',marginTop:5}}>سيتم تنزيل PDF عند أول فتح وحفظه على الجهاز للقراءة دون اتصال لاحقًا.</Text><TextInput value={name} onChangeText={setName} placeholder="اسم الكتاب أو الملزمة" textAlign="right" style={{borderWidth:1,borderColor:C.border,borderRadius:11,padding:11,marginTop:10,backgroundColor:'#fff'}}/><TextInput value={url} onChangeText={setUrl} autoCapitalize="none" keyboardType="url" placeholder="https://...pdf" textAlign="right" style={{borderWidth:1,borderColor:C.border,borderRadius:11,padding:11,marginTop:8,backgroundColor:'#fff'}}/><Action label="نشر للطلاب" icon="🔗" onPress={addLink}/></Card></Section>}
-  {subject&&<Section title="الكتب والملازم المنشورة">{links.map(b=><Card key={b.id}><Text style={{fontSize:16,fontWeight:'900',color:C.navy,textAlign:'right'}}>{b.name}</Text><Text style={{color:C.muted,textAlign:'right',marginTop:4}}>{cached[b.id]?'✓ محفوظ على الجهاز':'سيتم تنزيله عند أول فتح'}</Text><Action label={busy===b.id?'جاري التنزيل…':cached[b.id]?'فتح الملف المحفوظ':'تنزيل وفتح الملف'} icon={cached[b.id]?'✓':'📖'} onPress={()=>cacheAndOpen(b)}/></Card>)}{!links.length&&<Card><Text style={{textAlign:'center',color:C.muted}}>لا توجد روابط منشورة لهذا الصف والمادة.</Text></Card>}</Section>}
+  {subject&&<Section title="الكتب والملازم المنشورة">{links.map(b=><Card key={b.id}><Text style={{fontSize:16,fontWeight:'900',color:C.navy,textAlign:'right'}}>{b.name}</Text><Text style={{color:C.muted,textAlign:'right',marginTop:4}}>{cached[b.id]?'✓ محفوظ على الجهاز':'سيتم تنزيله عند أول فتح'}</Text><Action label={busy===b.id?'جاري التجهيز…':cached[b.id]?'فتح الملف المحفوظ':'تنزيل وفتح الملف'} icon={cached[b.id]?'✓':'📖'} onPress={()=>cacheAndOpen(b)}/></Card>)}{!links.length&&<Card><Text style={{textAlign:'center',color:C.muted}}>لا توجد روابط منشورة لهذا الصف والمادة.</Text></Card>}</Section>}
   {subject&&<Section title="المحتوى المدمج">{list.length?list.map(b=><Card key={b.id}><Text style={{fontSize:17,fontWeight:'900',color:C.navy,textAlign:'right'}}>{b.title}</Text><Text style={{color:C.muted,textAlign:'right',marginTop:5}}>{b.description}</Text><Action label="قراءة المحتوى" icon="📖" onPress={()=>router.push({pathname:'/book',params:{id:b.id,grade:b.grade,subject:b.subject}})}/></Card>):<Card><Text style={{textAlign:'center',color:C.muted}}>لا يوجد محتوى مدمج لهذا الصف والمادة.</Text></Card>}</Section>}
  </Page>;
 }
