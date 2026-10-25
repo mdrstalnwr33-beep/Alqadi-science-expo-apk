@@ -28,6 +28,7 @@ export const storageKeys = {
   downloads: 'offline-lessons',
   teacherProfile: 'teacher-profile',
   teacherBiometric: 'teacher-biometric',
+  studentBiometricCodes: 'student-biometric-codes',
   examAttempt: (student: string, exam: string) => `exam-attempt:${student}:${exam}`,
   homeworkSubmission: (student: string, homework: string) => `homework-submission:${student}:${homework}`,
   results: (student: string) => `student-results:${student}`,
