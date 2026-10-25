@@ -12,7 +12,7 @@ import { Action, Card, Page, Section, C } from '../src/ui';
 export default function HomeworkScreen(){
  const p=useLocalSearchParams<{role?:string;grade?:string;subject?:string;name?:string;code?:string}>();
  const teacher=p.role==='teacher'; const [cloud,setCloud]=useState<CustomHomework[]>([]); const [custom,setCustom]=useState<CustomHomework[]>([]);
- useEffect(()=>{getCustomHomework().then(setCustom); if(p.grade&&p.subject)getCloudHomework(p.grade,p.subject).then(setCloud).catch(()=>setCloud([]));},[p.grade,p.subject]);
+ useEffect(()=>{let alive=true;getCustomHomework().then(x=>{if(alive)setCustom(x)});if(p.grade){const selected=p.subject?[p.subject]:['الكيمياء','الفيزياء','الأحياء'];Promise.all(selected.map(s=>getCloudHomework(p.grade!,s).catch(()=>[]))).then(groups=>{if(alive)setCloud(groups.flat())});}else setCloud([]);return()=>{alive=false}},[p.grade,p.subject]);
  const merged=new Map<string,CustomHomework>();
  [...homework,...custom,...cloud].forEach(h=>merged.set(String(h.id),h));
  const list=[...merged.values()].filter(h=>(!p.subject||h.subject===p.subject)&&(!p.grade||h.grade===p.grade));
