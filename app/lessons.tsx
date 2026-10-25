@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Text, View } from 'react-native';
 import { File, Paths } from 'expo-file-system';
-import { lessons as baseLessons } from '../src/data';
+import { lessons as baseLessons, subjects } from '../src/data';
 import { readJson, storageKeys, writeJson } from '../src/storage';
 import { getCloudLessons } from '../src/contentCloud';
 import { Card, Page, Section, Action, C } from '../src/ui';
@@ -10,7 +10,7 @@ import { Card, Page, Section, Action, C } from '../src/ui';
 export default function LessonsScreen() {
  const p=useLocalSearchParams<{subject?:string;grade?:string;role?:string}>();
  const [custom,setCustom]=useState<any[]>([]); const [cloud,setCloud]=useState<any[]>([]); const [downloaded,setDownloaded]=useState<Record<string,string>>({});
- useEffect(()=>{readJson<any[]>('custom-lessons-all',[]).then(setCustom);readJson<Record<string,string>>(storageKeys.downloads,{}).then(setDownloaded); if(p.grade&&p.subject)getCloudLessons(p.grade,p.subject).then(setCloud).catch(()=>setCloud([]));},[p.grade,p.subject]);
+ useEffect(()=>{let alive=true;readJson<any[]>('custom-lessons-all',[]).then(x=>{if(alive)setCustom(x)});readJson<Record<string,string>>(storageKeys.downloads,{}).then(x=>{if(alive)setDownloaded(x)});if(p.grade){const selected=p.subject?[p.subject]:subjects.map(s=>s.name);Promise.all(selected.map(s=>getCloudLessons(p.grade!,s).catch(()=>[]))).then(groups=>{if(alive)setCloud(groups.flat())});}else setCloud([]);return()=>{alive=false}},[p.grade,p.subject]);
  const all=[...baseLessons,...custom,...cloud];
  const list=all.filter(x=>(!p.subject||x.subject===p.subject)&&(!p.grade||x.grade===p.grade));
  const download=async(l:any)=>{try{const file=new File(Paths.document,`lesson-${l.id}.txt`);if(!file.exists)file.create();file.write(`${l.title}\n${l.grade}\n${l.date}\n\n${l.body}`);const next={...downloaded,[l.id]:file.uri};await writeJson(storageKeys.downloads,next);setDownloaded(next);Alert.alert('تم التنزيل','تم حفظ الدرس على الهاتف ويمكن قراءته دون اتصال.')}catch{Alert.alert('تعذر التنزيل','حدث خطأ أثناء حفظ الدرس محليًا.')}};
