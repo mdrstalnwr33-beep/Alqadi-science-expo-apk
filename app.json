@@ -2,7 +2,7 @@
   "expo": {
     "name": "تطبيق القاضي للعلوم",
     "slug": "alqadi-science-app",
-    "version": "0.3.9",
+    "version": "0.4.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -13,7 +13,7 @@
     },
     "android": {
       "package": "com.nourascience.app",
-      "versionCode": 9,
+      "versionCode": 10,
       "supportsRtl": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon-foreground.png",
@@ -27,9 +27,7 @@
         "expo-build-properties",
         {
           "android": {
-            "buildArchs": [
-              "arm64-v8a"
-            ],
+            "buildArchs": ["arm64-v8a"],
             "enableBundleCompression": true,
             "enableMinifyInReleaseBuilds": false,
             "useLegacyPackaging": true
