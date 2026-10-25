@@ -13,7 +13,9 @@ export default function HomeworkScreen(){
  const p=useLocalSearchParams<{role?:string;grade?:string;subject?:string;name?:string;code?:string}>();
  const teacher=p.role==='teacher'; const [cloud,setCloud]=useState<CustomHomework[]>([]); const [custom,setCustom]=useState<CustomHomework[]>([]);
  useEffect(()=>{getCustomHomework().then(setCustom); if(p.grade&&p.subject)getCloudHomework(p.grade,p.subject).then(setCloud).catch(()=>setCloud([]));},[p.grade,p.subject]);
- const list=[...homework,...custom,...cloud].filter(h=>(!p.subject||h.subject===p.subject)&&(!p.grade||h.grade===p.grade));
+ const merged=new Map<string,CustomHomework>();
+ [...homework,...custom,...cloud].forEach(h=>merged.set(String(h.id),h));
+ const list=[...merged.values()].filter(h=>(!p.subject||h.subject===p.subject)&&(!p.grade||h.grade===p.grade));
  const [selectedId,setSelectedId]=useState<string|undefined>(); const current=list.find(h=>h.id===(selectedId||list[0]?.id));
  const key=current?storageKeys.homeworkSubmission((p.name||'طالب').trim(),current.id):'';
  const [answers,setAnswers]=useState<Record<string,string>>({}); const [photo,setPhoto]=useState<string>(); const [sent,setSent]=useState(false);
