@@ -27,6 +27,15 @@ async function openRemotePdf(url:string){
   await WebBrowser.openBrowserAsync(url,{enableBarCollapsing:true});
 }
 
+async function isRealPdf(uri:string){
+  try{
+    const file=new File(uri);
+    if(!file.exists||!file.size)return false;
+    const head=(await file.text()).slice(0,8);
+    return head.startsWith('%PDF-');
+  }catch{return false;}
+}
+
 export default function BooksScreen(){
  const p=useLocalSearchParams<{subject?:string;grade?:string;role?:string;name?:string}>();
  const subject=p.subject; const grade=p.grade; const teacher=p.role==='teacher';
@@ -36,22 +45,19 @@ export default function BooksScreen(){
  const cacheAndOpen=async(item:CloudBookLink)=>{setBusy(item.id);const original=item.url;const downloadUrl=normalizePdfUrl(original);let localPath:string|undefined;try{
    const target=new File(Paths.document,`book-${item.id}.pdf`);
    let local=cached[item.id];
-   if(local){try{const file=new File(local);if(!file.exists)local=undefined;}catch{local=undefined;}}
-   if(!local&&target.exists)local=target.uri;
+   if(local){try{if(!await isRealPdf(local))local=undefined;}catch{local=undefined;}}
+   if(!local&&target.exists){if(await isRealPdf(target.uri))local=target.uri;else{try{target.delete();}catch{}}}
    if(!local){
      const downloaded=await File.downloadFileAsync(downloadUrl,target,{idempotent:true});
      local=downloaded.uri;
-     const file=new File(local);
-     if(!file.exists||!file.size)throw new Error('download-incomplete');
+     if(!await isRealPdf(local))throw new Error('not-a-pdf');
    }
    localPath=local;
    const next={...cached,[item.id]:local};setCached(next);await writeJson(cacheKey,next);
-
-   // نفس فكرة تطبيق الأكاديمية: افتح الملف داخل شاشة PDF داخل التطبيق.
    router.push({pathname:'/pdf-viewer',params:{uri:local,title:item.name,bookId:item.id}});
   }catch(error){
-   if(localPath){Alert.alert('الملف محفوظ','تم حفظ الملزمة على الجهاز، لكن تعذر فتح عارض PDF داخل التطبيق.');}
-   else {try{await openRemotePdf(original);Alert.alert('فتح الرابط','تعذر تنزيل نسخة محلية، فتم فتح الرابط داخل التطبيق.');}catch{Alert.alert('تعذر فتح الملف','تحقق من الرابط وصلاحية الملف ثم حاول مرة أخرى.');}}
+   if(localPath){Alert.alert('الملف محفوظ','تم حفظ الملزمة، لكن تعذر تشغيل قارئ PDF داخل التطبيق.');}
+   else {try{await openRemotePdf(original);Alert.alert('الرابط ليس PDF مباشرًا','تعذر تنزيل PDF صالح من الرابط. افتح الرابط داخل التطبيق أو استخدم رابط PDF مباشر.');}catch{Alert.alert('تعذر فتح الملف','تحقق من الرابط وصلاحية الملف ثم حاول مرة أخرى.');}}
   }finally{setBusy(null);}};
  const list=books.filter(b=>(!subject||b.subject===subject)&&(!grade||b.grade===grade));
  return <Page title={subject||'الكتب والملازم'} subtitle={grade?`${grade} • ${subject||'العلوم'}`:'اختر المادة الدراسية'} onBack={()=>router.back()}>
