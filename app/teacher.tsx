@@ -1,45 +1,33 @@
-import { router } from 'expo-router';
-import { useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { grades, type Grade } from '../src/data';
 
 export default function TeacherScreen() {
-  const [grade, setGrade] = useState<Grade>(grades[0]);
-
-  const actions = [
-    { title: 'إضافة درس جديد', subtitle: 'انشر درسًا للصف المحدد', icon: '📘', route: '/create-lesson' },
-    { title: 'إنشاء اختبار', subtitle: 'أضف أسئلة وانشر الاختبار', icon: '📝', route: '/create-exam' },
-    { title: 'إنشاء واجب', subtitle: 'أرسل واجبًا للطلاب', icon: '📚', route: '/create-homework' },
-    { title: 'درجات الطلاب', subtitle: 'متابعة نتائج الطلاب', icon: '📊', route: '/results' },
-  ] as const;
+  const p = useLocalSearchParams<{ name?: string; code?: string }>();
+  const selectGrade = (grade: Grade) => router.replace({
+    pathname: '/home',
+    params: { role: 'teacher', name: p.name || 'الأستاذ محمد القاضي الوصابي', code: p.code || '', grade, stage: grade },
+  });
 
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.container}>
-        <Pressable onPress={() => router.back()}><Text style={styles.back}>رجوع ›</Text></Pressable>
-        <Text style={styles.title}>لوحة المعلم</Text>
-        <Text style={styles.subtitle}>اختر الصف الدراسي أولًا لتوجيه المحتوى إليه.</Text>
-        <View style={styles.gradePanel}>
-          <Text style={styles.sectionTitle}>🎓 الصف الدراسي</Text>
-          <View style={styles.grades}>
-            {grades.map((item) => (
-              <Pressable key={item} onPress={() => setGrade(item)} style={[styles.gradeChip, grade === item && styles.gradeSelected]}>
-                <Text style={[styles.gradeText, grade === item && styles.gradeTextSelected]}>{item}</Text>
-              </Pressable>
-            ))}
-          </View>
-          <Text style={styles.selected}>الصف المحدد: {grade}</Text>
+        <Pressable onPress={() => router.replace('/')}><Text style={styles.back}>رجوع ›</Text></Pressable>
+        <Text style={styles.eyebrow}>تطبيق القاضي للعلوم</Text>
+        <Text style={styles.title}>مرحبًا بك في لوحة المعلم 🎓</Text>
+        <Text style={styles.subtitle}>اختر الصف الدراسي للانتقال إلى لوحة إدارته.</Text>
+        <View style={styles.panel}>
+          <Text style={styles.sectionTitle}>اختر الصف الدراسي</Text>
+          {grades.map((grade, index) => (
+            <Pressable key={grade} style={styles.gradeCard} onPress={() => selectGrade(grade)}>
+              <View style={styles.copy}>
+                <Text style={styles.gradeTitle}>{grade}</Text>
+                <Text style={styles.description}>الكيمياء • الفيزياء • الأحياء</Text>
+              </View>
+              <Text style={styles.icon}>{['1️⃣', '2️⃣', '3️⃣'][index]}</Text>
+            </Pressable>
+          ))}
         </View>
-        <Text style={styles.sectionTitle}>إدارة الصف</Text>
-        {actions.map((item) => (
-          <Pressable key={item.title} style={styles.card} onPress={() => router.push({ pathname: item.route as any, params: { grade } })}>
-            <View style={styles.cardCopy}>
-              <Text style={styles.text}>{item.title}</Text>
-              <Text style={styles.description}>{item.subtitle}</Text>
-            </View>
-            <Text style={styles.icon}>{item.icon}</Text>
-          </Pressable>
-        ))}
       </ScrollView>
     </SafeAreaView>
   );
@@ -47,21 +35,16 @@ export default function TeacherScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#f4f7fb' },
-  container: { padding: 20, paddingBottom: 36 },
-  back: { color: '#356ae6', fontWeight: '800', marginBottom: 18, textAlign: 'right' },
-  title: { fontSize: 27, fontWeight: '900', color: '#14213d', textAlign: 'right', marginBottom: 6 },
-  subtitle: { fontSize: 14, color: '#667085', textAlign: 'right', marginBottom: 18, lineHeight: 22 },
-  gradePanel: { backgroundColor: '#eaf2ff', borderRadius: 18, padding: 16, marginBottom: 22, borderWidth: 1, borderColor: '#c7d7fe' },
-  sectionTitle: { fontSize: 18, fontWeight: '900', color: '#14213d', textAlign: 'right', marginBottom: 12 },
-  grades: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8 },
-  gradeChip: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#d0d5dd', borderRadius: 12, paddingVertical: 11, paddingHorizontal: 12 },
-  gradeSelected: { backgroundColor: '#173b70', borderColor: '#173b70' },
-  gradeText: { color: '#344054', fontWeight: '800', fontSize: 13 },
-  gradeTextSelected: { color: '#fff' },
-  selected: { color: '#173b70', fontWeight: '800', textAlign: 'right', marginTop: 12 },
-  card: { backgroundColor: '#fff', borderRadius: 18, padding: 18, marginBottom: 12, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', elevation: 2 },
-  cardCopy: { flex: 1 },
-  text: { fontSize: 17, fontWeight: '800', color: '#101828', textAlign: 'right' },
-  description: { fontSize: 13, color: '#667085', textAlign: 'right', marginTop: 5 },
-  icon: { fontSize: 25, marginLeft: 14 },
+  container: { flexGrow: 1, padding: 20, paddingTop: 36, justifyContent: 'center' },
+  back: { color: '#356ae6', fontWeight: '800', marginBottom: 25, textAlign: 'right' },
+  eyebrow: { color: '#356ae6', fontWeight: '900', fontSize: 14, textAlign: 'center', marginBottom: 10 },
+  title: { fontSize: 27, fontWeight: '900', color: '#14213d', textAlign: 'center', marginBottom: 8 },
+  subtitle: { fontSize: 14, lineHeight: 23, color: '#667085', textAlign: 'center', marginBottom: 24 },
+  panel: { backgroundColor: '#eaf2ff', borderRadius: 22, padding: 16, borderWidth: 1, borderColor: '#c7d7fe' },
+  sectionTitle: { fontSize: 19, fontWeight: '900', color: '#14213d', textAlign: 'right', marginBottom: 12 },
+  gradeCard: { backgroundColor: '#fff', borderRadius: 16, padding: 17, marginBottom: 10, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#e4e7ec' },
+  copy: { flex: 1 },
+  gradeTitle: { fontSize: 18, fontWeight: '900', color: '#14213d', textAlign: 'right' },
+  description: { fontSize: 12, color: '#667085', textAlign: 'right', marginTop: 5 },
+  icon: { fontSize: 28, marginLeft: 12 },
 });
