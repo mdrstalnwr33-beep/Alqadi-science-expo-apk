@@ -12,7 +12,8 @@ export default function Index() {
         if (s.role === 'student') {
           router.replace('/welcome');
         } else {
-          router.replace({ pathname: '/home', params: { role: s.role, name: s.name, grade: s.grade, code: s.code } });
+          if (s.role === 'teacher') router.replace({ pathname: '/teacher', params: { name: s.name, code: s.code } });
+        else router.replace({ pathname: '/home', params: { role: s.role, name: s.name, grade: s.grade, code: s.code } });
         }
       } else setChecking(false);
     });
