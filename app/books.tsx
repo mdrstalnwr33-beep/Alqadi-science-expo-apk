@@ -14,14 +14,11 @@ type CacheMap=Record<string,string>;
 
 function normalizePdfUrl(input:string){
   let url=input.trim();
-  // Google Drive shared file -> direct download endpoint.
   const driveMatch=url.match(/drive\.google\.com\/file\/d\/([^/]+)/i);
   if(driveMatch?.[1]) return `https://drive.google.com/uc?export=download&id=${driveMatch[1]}`;
   const driveOpen=url.match(/[?&]id=([^&]+)/i);
   if(/drive\.google\.com/i.test(url)&&driveOpen?.[1]) return `https://drive.google.com/uc?export=download&id=${driveOpen[1]}`;
-  // Dropbox shared link -> direct content endpoint.
   if(/dropbox\.com/i.test(url)) return url.replace('www.dropbox.com','dl.dropboxusercontent.com').replace('?dl=0','?dl=1');
-  // GitHub blob links -> raw file endpoint.
   const gh=url.match(/github\.com\/([^/]+)\/([^/]+)\/blob\/([^/]+)\/(.+)/i);
   if(gh) return `https://raw.githubusercontent.com/${gh[1]}/${gh[2]}/${gh[3]}/${gh[4]}`;
   return url;
@@ -40,7 +37,6 @@ export default function BooksScreen(){
  const cacheAndOpen=async(item:CloudBookLink)=>{setBusy(item.id);const original=item.url;const downloadUrl=normalizePdfUrl(original);let localPath:string|undefined;try{
    const target=new File(Paths.document,`book-${item.id}.pdf`);
    let local=cached[item.id];
-   // Recover the deterministic file path even if the cache index was not saved previously.
    if(local){try{const file=new File(local);if(!file.exists)local=undefined;}catch{local=undefined;}}
    if(!local&&target.exists)local=target.uri;
    if(!local){
@@ -51,17 +47,27 @@ export default function BooksScreen(){
    }
    localPath=local;
    const next={...cached,[item.id]:local};setCached(next);await writeJson(cacheKey,next);
+
+   const file=new File(local);
+   // Use Expo's native file preview on Android. This launches ACTION_VIEW with
+   // a safe content URI instead of exposing the app-private file:// URI.
    try{
-     const sharingAvailable=await Sharing.isAvailableAsync();
-     if(!sharingAvailable)throw new Error('sharing-unavailable');
-     // Android cannot reliably open app-private file:// URIs with Linking.
-     // Sharing hands the saved PDF to the installed PDF viewer without downloading it again.
-     await Sharing.shareAsync(local,{mimeType:'application/pdf',dialogTitle:'فتح الملزمة المحفوظة'});
+     await file.preview({title:item.name});
+     return;
    }catch{
-     Alert.alert('الملف محفوظ','تم حفظ الملزمة على الجهاز، لكن لم يستطع الهاتف فتحها مباشرة. لن نعيد تنزيلها. ثبّت قارئ PDF ثم اضغط «فتح الملف المحفوظ» مرة أخرى.');
+     // Some phones have no PDF viewer or reject native preview. In that case,
+     // hand the same saved file to Android's sharing/open-with chooser.
+     try{
+       const sharingAvailable=await Sharing.isAvailableAsync();
+       if(!sharingAvailable)throw new Error('sharing-unavailable');
+       await Sharing.shareAsync(local,{mimeType:'application/pdf',dialogTitle:'فتح الملزمة المحفوظة'});
+       return;
+     }catch{
+       Alert.alert('الملف محفوظ','تم حفظ الملزمة على الجهاز، لكن لا يوجد تطبيق يستطيع فتح PDF حاليًا. ثبّت قارئ PDF ثم اضغط «فتح الملف المحفوظ» مرة أخرى.');
+     }
    }
   }catch(error){
-   if(localPath){Alert.alert('الملف محفوظ','تعذر فتح الملف المحلي، لكننا احتفظنا بالنسخة المحفوظة ولن نعيد تنزيلها.');}
+   if(localPath){Alert.alert('الملف محفوظ','تم حفظ الملزمة على الجهاز، ولن نعيد تنزيلها. تعذر فتحها تلقائيًا. تأكد من وجود قارئ PDF ثم حاول مرة أخرى.');}
    else {try{await openPdf(original);Alert.alert('فتح الرابط','تعذر تنزيل نسخة محلية، فتم فتح الرابط داخل التطبيق.');}catch{Alert.alert('تعذر فتح الملف','تحقق من الرابط وصلاحية الملف ثم حاول مرة أخرى.');}}
   }finally{setBusy(null);}};
  const list=books.filter(b=>(!subject||b.subject===subject)&&(!grade||b.grade===grade));
