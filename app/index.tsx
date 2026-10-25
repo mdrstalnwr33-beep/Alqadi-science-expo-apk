@@ -1,24 +1,26 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Image, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
-import { getSession } from '../src/storage';
+import { getSession, readJson, storageKeys } from '../src/storage';
 import { subjects } from '../src/data';
 
 export default function Index() {
   const [checking, setChecking] = useState(true);
   useEffect(() => {
-    getSession().then(s => {
-      if (s?.active) {
-        if (s.role === 'student') {
-          router.replace('/welcome');
-        } else {
-          if (s.role === 'teacher') router.replace({ pathname: '/teacher', params: { name: s.name, code: s.code } });
-        else router.replace({ pathname: '/home', params: { role: s.role, name: s.name, grade: s.grade, code: s.code } });
-        }
-      } else setChecking(false);
-    });
+    (async()=>{
+      const s=await getSession();
+      if(s?.active){
+        if(s.role==='student') router.replace('/welcome');
+        else if(s.role==='teacher') router.replace({ pathname:'/teacher', params:{name:s.name,code:s.code} });
+        else router.replace({ pathname:'/home', params:{role:s.role,name:s.name,grade:s.grade,code:s.code} });
+        return;
+      }
+      const studentBio=await readJson<string>(storageKeys.studentBiometricCode,'');
+      if(/^\d{6}$/.test(studentBio)) router.replace('/student-biometric');
+      else setChecking(false);
+    })();
   }, []);
-  if (checking) return <SafeAreaView style={styles.safe}><View style={styles.center}><Image source={require('../assets/icon.png')} style={styles.loadingLogo}/><Text style={styles.title}>تطبيق القاضي للعلوم</Text><Text style={styles.note}>جارٍ استعادة الجلسة…</Text></View></SafeAreaView>;
+  if (checking) return <SafeAreaView style={styles.safe}><View style={styles.center}><Image source={require('../assets/icon.png')} style={styles.loadingLogo}/><Text style={styles.title}>تطبيق القاضي للعلوم</Text><Text style={styles.note}>جارٍ التحقق من الجلسة…</Text></View></SafeAreaView>;
   return <SafeAreaView style={styles.safe}><View style={styles.container}>
     <View style={styles.brand}><Pressable onLongPress={() => router.push({ pathname: '/login', params: { role: 'teacher' } })} delayLongPress={900}><Image source={require('../assets/icon.png')} style={styles.logo}/></Pressable><Text style={styles.title}>تطبيق القاضي للعلوم</Text><Text style={styles.subtitle}>منصة تعليمية للمرحلة الثانوية</Text></View>
     <View style={styles.subjects}>{subjects.map(s => <View key={s.name} style={styles.subject}><Text style={styles.subjectIcon}>{s.icon}</Text><Text style={styles.subjectName}>{s.name}</Text></View>)}</View>
