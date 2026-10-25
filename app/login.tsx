@@ -2,8 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { grades } from '../src/data';
-import { claimStudentDevice, getCloudStudent, getCloudTeacherCode } from '../src/cloud';
-import { getDeviceId } from '../src/device';
+import { getCloudStudent, getCloudTeacherCode } from '../src/cloud';
 import { readJson, setSession, storageKeys, type LocalStudent, writeJson } from '../src/storage';
 
 const INITIAL_TEACHER_CODE = '900001';
@@ -32,8 +31,7 @@ export default function LoginScreen(){
    }
    let student:LocalStudent|null=null;try{student=await getCloudStudent(code)}catch{student=students.find(s=>s.code===code)||null;if(!student)return Alert.alert('تعذر الاتصال','تعذر الاتصال بالسحابة ولا يوجد هذا الطالب محفوظًا على هذا الجهاز.')}
    if(!student)student=students.find(s=>s.code===code)||null;if(!student)return Alert.alert('الكود غير موجود','هذا الكود لم ينشئه المعلم.');if(!student.active)return Alert.alert('الحساب موقوف','تم إيقاف هذا الطالب من قبل المعلم.');
-   const deviceId=await getDeviceId();let claim:'claimed'|'same-device'|'occupied'|'inactive'|'missing';try{claim=await claimStudentDevice(code,deviceId)}catch{claim='same-device'}
-   if(claim==='occupied')return Alert.alert('الحساب مستخدم على جهاز آخر','هذا الكود مسجل الدخول من جهاز آخر. سجّل الخروج من الجهاز الآخر أولًا.');if(claim==='inactive')return Alert.alert('الحساب موقوف','تم إيقاف هذا الطالب من قبل المعلم.');if(claim==='missing'&&!students.some(s=>s.code===code))return Alert.alert('الكود غير موجود','لم يتم العثور على سجل الطالب.');
+   // كود الطالب هو وسيلة الدخول نفسها ولا نربطه بجهاز واحد. يمكن للطالب استخدام الكود من أي هاتف أو جهاز.
    await setSession({role:'student',name:student.name,grade:student.grade,code:student.code,active:true});router.dismissAll();router.replace({pathname:'/home',params:{role:'student',name:student.name,grade:student.grade,code:student.code}});
   }finally{setBusy(false)}
  };
