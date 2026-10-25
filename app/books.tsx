@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { File, Paths } from 'expo-file-system';
+import { File, FileMode, Paths } from 'expo-file-system';
 import { Alert, Pressable, Text, TextInput, View } from 'react-native';
 import { useEffect, useState } from 'react';
 import { books, subjects } from '../src/data';
@@ -31,8 +31,10 @@ async function isRealPdf(uri:string){
   try{
     const file=new File(uri);
     if(!file.exists||!file.size)return false;
-    const head=(await file.text()).slice(0,8);
-    return head.startsWith('%PDF-');
+    const handle=file.open(FileMode.ReadOnly);
+    const bytes=handle.readBytesSync(5);
+    handle.close();
+    return bytes.length===5 && bytes[0]===37 && bytes[1]===80 && bytes[2]===68 && bytes[3]===70 && bytes[4]===45;
   }catch{return false;}
 }
 
