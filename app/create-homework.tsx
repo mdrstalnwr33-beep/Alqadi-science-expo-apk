@@ -22,7 +22,8 @@ export default function CreateHomeworkScreen() {
     const clean = questions.map(q=>q.trim()).filter(Boolean);
     if (!clean.length) return Alert.alert('أسئلة ناقصة','أضف سؤالًا واحدًا على الأقل.');
     const current = await getCustomHomework();
-    const item={id:`custom-hw-${Date.now()}`,title:title.trim(),subject,grade,due:due.trim()||'غير محدد',note:note.trim()||'أجب عن جميع الأسئلة بوضوح.',questions:clean,createdAt:Date.now()};
+    const targetGrade=(p.grade as Grade)||grade;
+    const item={id:`custom-hw-${Date.now()}`,title:title.trim(),subject,grade:targetGrade,due:due.trim()||'غير محدد',note:note.trim()||'أجب عن جميع الأسئلة بوضوح.',questions:clean,createdAt:Date.now()};
     await saveCustomHomework([...current,item]);
     try { await publishHomework({...item,createdAt:Date.now()}); await publishNotice({id:`notice-${item.id}`,grade:item.grade,title:'واجب جديد',body:item.title,createdAt:Date.now()}); Alert.alert('تم النشر السحابي','وصل الواجب إلى طلاب الصف.'); } catch (error) { const code=String((error as any)?.code||'unknown'); Alert.alert('تعذر النشر السحابي',code.includes('permission-denied')?'صلاحيات Firestore غير منشورة. افتح FIREBASE_DEPLOY.md وانشر firestore.rules.':`تعذر الاتصال بالسحابة (${code}).`); }
     router.back();
@@ -31,7 +32,7 @@ export default function CreateHomeworkScreen() {
     <Card>
       <Text style={label}>عنوان الواجب</Text><TextInput value={title} onChangeText={setTitle} placeholder="مثال: واجب الوحدة الأولى" textAlign="right" style={input}/>
       <Text style={label}>المادة</Text><View style={wrap}>{subjects.map(s=><Pressable key={s.name} onPress={()=>setSubject(s.name)} style={[chip,subject===s.name&&active]}><Text style={chipText}>{s.name}</Text></Pressable>)}</View>
-      <Text style={label}>الصف</Text><View style={wrap}>{grades.map(g=><Pressable key={g} onPress={()=>setGrade(g)} style={[chip,grade===g&&active]}><Text style={chipText}>{g}</Text></Pressable>)}</View>
+      <Text style={label}>الصف المرتبط بهذا المحتوى</Text>{p.grade?<Text style={{color:C.navy,fontWeight:'900',textAlign:'right',paddingVertical:10}}>{p.grade}</Text>:<View style={wrap}>{grades.map(g=><Pressable key={g} onPress={()=>setGrade(g)} style={[chip,grade===g&&active]}><Text style={chipText}>{g}</Text></Pressable>)}</View>}
       <Text style={label}>موعد التسليم</Text><TextInput value={due} onChangeText={setDue} placeholder="مثال: 25 أكتوبر" textAlign="right" style={input}/>
       <Text style={label}>ملاحظة للطلاب</Text><TextInput value={note} onChangeText={setNote} multiline placeholder="تعليمات أو ملاحظات إضافية" textAlign="right" style={[input,{minHeight:75,textAlignVertical:'top'}]}/>
     </Card>
