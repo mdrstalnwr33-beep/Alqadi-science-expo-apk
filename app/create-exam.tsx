@@ -32,9 +32,10 @@ export default function CreateExamScreen() {
     }));
     if (normalized.some(q => (q.type !== 'text' && (!q.options || q.options.length < 2 || !q.answer)))) return Alert.alert('إجابة ناقصة', 'أكمل الخيارات والإجابة الصحيحة لكل سؤال موضوعي.');
     const current = await getCustomExams();
-    const item={ id: `custom-exam-${Date.now()}`, title: title.trim(), subject, grade, duration: Math.max(1, Number(duration) || 30), questions: normalized, createdAt: Date.now() };
+    const targetGrade = (p.grade as Grade) || grade;
+    const item={ id: `custom-exam-${Date.now()}`, title: title.trim(), subject, grade: targetGrade, duration: Math.max(1, Number(duration) || 30), questions: normalized, createdAt: Date.now() };
     await saveCustomExams([...current,item]);
-    try { await publishExam(item); await publishNotice({id:`notice-${item.id}`,grade,title:'اختبار جديد',body:item.title,createdAt:Date.now()}); Alert.alert('تم النشر السحابي','وصل الاختبار إلى طلاب الصف.'); } catch (error) { const code=String((error as any)?.code||'unknown'); Alert.alert('تعذر النشر السحابي',code.includes('permission-denied')?'صلاحيات Firestore غير منشورة. افتح FIREBASE_DEPLOY.md وانشر firestore.rules.':`تعذر الاتصال بالسحابة (${code}).`); }
+    try { await publishExam(item); await publishNotice({id:`notice-${item.id}`,grade:targetGrade,title:'اختبار جديد',body:item.title,createdAt:Date.now()}); Alert.alert('تم النشر السحابي','وصل الاختبار إلى طلاب الصف.'); } catch (error) { const code=String((error as any)?.code||'unknown'); Alert.alert('تعذر النشر السحابي',code.includes('permission-denied')?'صلاحيات Firestore غير منشورة. افتح FIREBASE_DEPLOY.md وانشر firestore.rules.':`تعذر الاتصال بالسحابة (${code}).`); }
     router.back();
   };
 
@@ -42,7 +43,7 @@ export default function CreateExamScreen() {
     <Card>
       <Text style={label}>عنوان الاختبار</Text><TextInput value={title} onChangeText={setTitle} placeholder="مثال: اختبار الوحدة الأولى" textAlign="right" style={input} />
       <Text style={label}>المادة</Text><View style={wrap}>{subjects.map(s => <Pressable key={s.name} onPress={() => setSubject(s.name)} style={[chip, subject === s.name && activeChip]}><Text style={chipText}>{s.name}</Text></Pressable>)}</View>
-      <Text style={label}>الصف</Text><View style={wrap}>{grades.map(g => <Pressable key={g} onPress={() => setGrade(g)} style={[chip, grade === g && activeChip]}><Text style={chipText}>{g}</Text></Pressable>)}</View>
+      <Text style={label}>الصف المرتبط بهذا المحتوى</Text>{p.grade ? <Text style={{color:C.navy,fontWeight:'900',textAlign:'right',paddingVertical:10}}>{p.grade}</Text> : <View style={wrap}>{grades.map(g => <Pressable key={g} onPress={() => setGrade(g)} style={[chip, grade === g && activeChip]}><Text style={chipText}>{g}</Text></Pressable>)}</View>}
       <Text style={label}>المدة بالدقائق</Text><TextInput value={duration} onChangeText={setDuration} keyboardType="number-pad" textAlign="right" style={input} />
     </Card>
     <Section title={`الأسئلة (${questions.length})`}>
