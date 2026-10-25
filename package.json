@@ -27,7 +27,7 @@
     "react-native": "0.86.3",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
-    "expo-screen-capture": "~7.0.3"
+    "expo-screen-capture": "~57.0.3"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.46.0",
