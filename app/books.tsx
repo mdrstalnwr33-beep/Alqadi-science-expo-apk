@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { File, Paths } from 'expo-file-system';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, Text, TextInput, View } from 'react-native';
+import { Alert, Linking, Pressable, Text, TextInput, View } from 'react-native';
 import { books, subjects } from '../src/data';
 import { getBookLinks, saveBookLink, type CloudBookLink } from '../src/contentCloud';
 import { readJson, writeJson } from '../src/storage';
@@ -38,12 +38,12 @@ export default function BooksScreen(){
  const addLink=async()=>{if(!grade||!subject||!name.trim()||!/^https?:\/\//i.test(url.trim()))return Alert.alert('بيانات ناقصة','أدخل اسم الكتاب أو الملزمة ورابطًا يبدأ بـ https://'); const item={id:`book-${Date.now()}`,name:name.trim(),url:url.trim(),grade,subject,createdAt:Date.now()}; try{await saveBookLink(item);setLinks(x=>[item,...x]);setName('');setUrl('');Alert.alert('تم النشر','أصبح الملف متاحًا لطلاب الصف.');}catch(error){const code=String((error as any)?.code||'unknown');Alert.alert('تعذر النشر',code.includes('permission-denied')?'صلاحيات Firestore غير منشورة.':'تعذر الاتصال بالسحابة الآن.');}};
  const cacheAndOpen=async(item:CloudBookLink)=>{setBusy(item.id);const original=item.url;const downloadUrl=normalizePdfUrl(original);try{
    let local=cached[item.id];
-   if(local){try{const file=new File(local);if(file.exists){await openPdf(local);return;}}catch{local=undefined;}}
+   if(local){try{const file=new File(local);if(file.exists){await Linking.openURL(local);return;}}catch{local=undefined;}}
    const target=new File(Paths.document,`book-${item.id}.pdf`);
    const downloaded=await File.downloadFileAsync(downloadUrl,target,{idempotent:true});
    local=downloaded.uri;
    const next={...cached,[item.id]:local}; setCached(next); await writeJson(cacheKey,next);
-   await openPdf(local);
+   await Linking.openURL(local);
   }catch(error){
    // Some hosts (especially Google Drive permission pages) refuse direct downloads.
    // Keep the student inside the app by opening the original URL in the in-app browser.
