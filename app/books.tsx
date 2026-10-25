@@ -1,9 +1,10 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import * as Sharing from 'expo-sharing';
+import * as IntentLauncher from 'expo-intent-launcher';
 import { File, Paths } from 'expo-file-system';
+import { Platform, Alert, Pressable, Text, TextInput, View } from 'react-native';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, Text, TextInput, View } from 'react-native';
 import { books, subjects } from '../src/data';
 import { getBookLinks, saveBookLink, type CloudBookLink } from '../src/contentCloud';
 import { readJson, writeJson } from '../src/storage';
@@ -49,21 +50,32 @@ export default function BooksScreen(){
    const next={...cached,[item.id]:local};setCached(next);await writeJson(cacheKey,next);
 
    const file=new File(local);
-   // Use Expo's native file preview on Android. This launches ACTION_VIEW with
-   // a safe content URI instead of exposing the app-private file:// URI.
+   // First try Expo's native preview. Android uses ACTION_VIEW when a PDF app exists.
    try{
-     await file.preview({title:item.name});
+     await file.preview({title:item.name,mimeType:'application/pdf'});
      return;
    }catch{
-     // Some phones have no PDF viewer or reject native preview. In that case,
-     // hand the same saved file to Android's sharing/open-with chooser.
+     // Some Android builds do not complete preview correctly. Explicitly launch
+     // ACTION_VIEW with the file's content:// URI and grant read permission.
+     if(Platform.OS==='android'){
+       try{
+         await IntentLauncher.startActivityAsync('android.intent.action.VIEW',{
+           data:file.contentUri,
+           type:'application/pdf',
+           flags:1,
+         });
+         return;
+       }catch{
+         // Continue to the open-with fallback below.
+       }
+     }
      try{
        const sharingAvailable=await Sharing.isAvailableAsync();
        if(!sharingAvailable)throw new Error('sharing-unavailable');
        await Sharing.shareAsync(local,{mimeType:'application/pdf',dialogTitle:'فتح الملزمة المحفوظة'});
        return;
      }catch{
-       Alert.alert('الملف محفوظ','تم حفظ الملزمة على الجهاز، لكن لا يوجد تطبيق يستطيع فتح PDF حاليًا. ثبّت قارئ PDF ثم اضغط «فتح الملف المحفوظ» مرة أخرى.');
+       Alert.alert('الملف محفوظ','تم حفظ الملزمة على الجهاز، لكن الهاتف لم يجد تطبيقًا لفتح PDF. ثبّت قارئ PDF ثم اضغط «فتح الملف المحفوظ» مرة أخرى.');
      }
    }
   }catch(error){
