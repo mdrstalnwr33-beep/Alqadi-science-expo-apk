@@ -9,8 +9,22 @@ import { readJson, writeJson } from '../src/storage';
 import { Action, Card, Page, Section, C, styles } from '../src/ui';
 
 const cacheKey='book-pdf-cache';
-
 type CacheMap=Record<string,string>;
+
+function normalizePdfUrl(input:string){
+  let url=input.trim();
+  // Google Drive shared file -> direct download endpoint.
+  const driveMatch=url.match(/drive\.google\.com\/file\/d\/([^/]+)/i);
+  if(driveMatch?.[1]) return `https://drive.google.com/uc?export=download&id=${driveMatch[1]}`;
+  const driveOpen=url.match(/[?&]id=([^&]+)/i);
+  if(/drive\.google\.com/i.test(url)&&driveOpen?.[1]) return `https://drive.google.com/uc?export=download&id=${driveOpen[1]}`;
+  // Dropbox shared link -> direct content endpoint.
+  if(/dropbox\.com/i.test(url)) return url.replace('www.dropbox.com','dl.dropboxusercontent.com').replace('?dl=0','?dl=1');
+  // GitHub blob links -> raw file endpoint.
+  const gh=url.match(/github\.com\/([^/]+)\/([^/]+)\/blob\/([^/]+)\/(.+)/i);
+  if(gh) return `https://raw.githubusercontent.com/${gh[1]}/${gh[2]}/${gh[3]}/${gh[4]}`;
+  return url;
+}
 
 async function openPdf(url:string){
   await WebBrowser.openBrowserAsync(url,{enableBarCollapsing:true});
@@ -22,15 +36,19 @@ export default function BooksScreen(){
  const [links,setLinks]=useState<CloudBookLink[]>([]); const [name,setName]=useState(''); const [url,setUrl]=useState(''); const [cached,setCached]=useState<CacheMap>({}); const [busy,setBusy]=useState<string|null>(null);
  useEffect(()=>{let alive=true;readJson<CacheMap>(cacheKey,{}).then(x=>{if(alive)setCached(x)});if(grade){const selected=subject?[subject]:subjects.map(s=>s.name);Promise.all(selected.map(s=>getBookLinks(grade,s).catch(()=>[]))).then(groups=>{if(alive)setLinks(groups.flat())});}else setLinks([]);return()=>{alive=false}},[grade,subject]);
  const addLink=async()=>{if(!grade||!subject||!name.trim()||!/^https?:\/\//i.test(url.trim()))return Alert.alert('بيانات ناقصة','أدخل اسم الكتاب أو الملزمة ورابطًا يبدأ بـ https://'); const item={id:`book-${Date.now()}`,name:name.trim(),url:url.trim(),grade,subject,createdAt:Date.now()}; try{await saveBookLink(item);setLinks(x=>[item,...x]);setName('');setUrl('');Alert.alert('تم النشر','أصبح الملف متاحًا لطلاب الصف.');}catch(error){const code=String((error as any)?.code||'unknown');Alert.alert('تعذر النشر',code.includes('permission-denied')?'صلاحيات Firestore غير منشورة.':'تعذر الاتصال بالسحابة الآن.');}};
- const cacheAndOpen=async(item:CloudBookLink)=>{setBusy(item.id);try{let local=cached[item.id];if(local){try{const file=new File(local);if(file.exists){await openPdf(local);return;}}catch{local=undefined;}}
+ const cacheAndOpen=async(item:CloudBookLink)=>{setBusy(item.id);const original=item.url;const downloadUrl=normalizePdfUrl(original);try{
+   let local=cached[item.id];
+   if(local){try{const file=new File(local);if(file.exists){await openPdf(local);return;}}catch{local=undefined;}}
    const target=new File(Paths.document,`book-${item.id}.pdf`);
-   const downloaded=await File.downloadFileAsync(item.url,target,{idempotent:true});
+   const downloaded=await File.downloadFileAsync(downloadUrl,target,{idempotent:true});
    local=downloaded.uri;
    const next={...cached,[item.id]:local}; setCached(next); await writeJson(cacheKey,next);
    await openPdf(local);
   }catch(error){
-   const code=String((error as any)?.message||'unknown');
-   Alert.alert('تعذر تنزيل الملف',code.includes('Network')||code.includes('network')?'تحقق من اتصال الإنترنت ثم حاول مرة أخرى.':'الرابط لا يشير إلى ملف PDF صالح أو أن الخادم رفض التنزيل.');
+   // Some hosts (especially Google Drive permission pages) refuse direct downloads.
+   // Keep the student inside the app by opening the original URL in the in-app browser.
+   try{await openPdf(original);Alert.alert('تم فتح الملف','الخادم لم يسمح بالتنزيل المباشر، لذلك تم فتح الرابط داخل التطبيق.');}
+   catch{Alert.alert('تعذر فتح الملف','تحقق من الرابط وصلاحية الملف ثم حاول مرة أخرى.');}
   }finally{setBusy(null);}};
  const list=books.filter(b=>(!subject||b.subject===subject)&&(!grade||b.grade===grade));
  return <Page title={subject||'الكتب والملازم'} subtitle={grade?`${grade} • ${subject||'العلوم'}`:'اختر المادة الدراسية'} onBack={()=>router.back()}>
