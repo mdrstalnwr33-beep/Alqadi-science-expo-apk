@@ -1,10 +1,13 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { Alert, Pressable, Text, TextInput, View } from 'react-native';
 import { useEffect, useState } from 'react';
 import { books, subjects } from '../src/data';
 import { deleteBookLink, getBookLinks, saveBookLink, updateBookLink, type CloudBookLink } from '../src/contentCloud';
 import { downloadPdf, getLibrary, getLocalPdf, pdfErrorMessage, removePdf, type PdfLibrary } from '../src/pdfStore';
 import { Action, Card, Page, Section, C, styles } from '../src/ui';
+
+const isTelegramMessageUrl = (raw: string) => /^https?:\/\/(?:www\.)?t\.me\/(?:s\/)?[^/]+\/\d+(?:[?#].*)?$/i.test(raw.trim());
 
 export default function BooksScreen(){
  const p=useLocalSearchParams<{subject?:string;grade?:string;role?:string;name?:string}>();
@@ -65,7 +68,16 @@ export default function BooksScreen(){
    try{await removePdf(item.id);await refreshLibrary();Alert.alert('تمت إزالة النسخة المحلية','سيتم تنزيل الملف من جديد عند فتحه.');}
    catch{Alert.alert('تعذر الإزالة','تعذر إزالة النسخة المحفوظة من الجهاز.');}
  };
- const cacheAndOpen=async(item:CloudBookLink)=>{setBusy(item.id);try{
+ const openTelegramMessage=async(item:CloudBookLink)=>{
+   setBusy(item.id);
+   try{
+     await WebBrowser.openBrowserAsync(item.url.trim(),{enableBarCollapsing:true,showTitle:true});
+   }catch{Alert.alert('تعذر فتح Telegram','تعذر فتح رسالة Telegram داخل التطبيق. تأكد من اتصال الإنترنت ثم حاول مرة أخرى.');}
+   finally{setBusy(null);}
+ };
+ const cacheAndOpen=async(item:CloudBookLink)=>{
+   if(isTelegramMessageUrl(item.url)) return openTelegramMessage(item);
+   setBusy(item.id);try{
    let local=await getLocalPdf(item.id);
    if(!local) local=await downloadPdf(item);
    await refreshLibrary();
@@ -77,23 +89,23 @@ export default function BooksScreen(){
   {!subject&&<Section title="اختر المادة"><View style={{gap:8}}>{subjects.map(s=><Pressable key={s.name} onPress={()=>router.push({pathname:'/books',params:{...p,subject:s.name}})} style={[styles.card,{borderColor:C.border}]}><Text style={{textAlign:'right',fontWeight:'900',fontSize:16,color:C.navy}}>{s.icon}  {s.name}</Text></Pressable>)}</View></Section>}
   {subject&&teacher&&<Section title={editingId?'تعديل الملف':'إضافة محتوى'}><Card>
     <Text style={{fontSize:17,fontWeight:'900',color:C.navy,textAlign:'right'}}>{editingId?'✏️ تعديل الكتاب أو الملزمة':'🔗 إضافة كتاب أو ملزمة'}</Text>
-    <Text style={{fontSize:11,color:C.muted,textAlign:'right',marginTop:5}}>يمكن للمعلم تعديل الاسم والرابط أو حذف الملف. عند أول فتح يتم تنزيل PDF داخل التطبيق وحفظ نسخة في: التنزيلات ← المقرر الدراسي.</Text>
+    <Text style={{fontSize:11,color:C.muted,textAlign:'right',marginTop:5}}>يمكن للمعلم تعديل الاسم والرابط أو حذف الملف. عند أول فتح يتم تنزيل PDF داخل التطبيق وحفظ نسخة في: التنزيلات ← المقرر الدراسي. روابط رسائل Telegram تفتح داخل التطبيق.</Text>
     <TextInput value={name} onChangeText={setName} placeholder="اسم الكتاب أو الملزمة" textAlign="right" style={{borderWidth:1,borderColor:C.border,borderRadius:11,padding:11,marginTop:10,backgroundColor:'#fff'}}/>
-    <TextInput value={url} onChangeText={setUrl} autoCapitalize="none" keyboardType="url" placeholder="https://...pdf" textAlign="right" style={{borderWidth:1,borderColor:C.border,borderRadius:11,padding:11,marginTop:8,backgroundColor:'#fff'}}/>
+    <TextInput value={url} onChangeText={setUrl} autoCapitalize="none" keyboardType="url" placeholder="https://...pdf أو https://t.me/.../61" textAlign="right" style={{borderWidth:1,borderColor:C.border,borderRadius:11,padding:11,marginTop:8,backgroundColor:'#fff'}}/>
     <Action label={editingId?'حفظ التعديل':'نشر للطلاب'} icon={editingId?'💾':'🔗'} onPress={editingId?saveEdit:addLink}/>
     {editingId&&<Action label="إلغاء التعديل" icon="↩️" onPress={resetForm}/>} 
   </Card></Section>}
   {subject&&<Section title={teacher?'إدارة الكتب والملازم':'الكتب والملازم المنشورة'}>{links.map(b=><Card key={b.id}>
     <Text style={{fontSize:16,fontWeight:'900',color:C.navy,textAlign:'right'}}>{b.name}</Text>
     <Text numberOfLines={1} style={{color:C.muted,textAlign:'right',marginTop:4}}>{b.url}</Text>
-    <Text style={{color:C.muted,textAlign:'right',marginTop:4}}>{library[b.id]?'✓ محفوظ في الجهاز والتنزيلات':'سيتم تنزيله عند أول فتح'}</Text>
-    <Action label={busy===b.id?'جاري التنزيل والحفظ…':library[b.id]?'فتح الملف المحفوظ':'تنزيل وفتح الملف'} icon={library[b.id]?'✓':'📖'} onPress={()=>cacheAndOpen(b)}/>
+    <Text style={{color:C.muted,textAlign:'right',marginTop:4}}>{isTelegramMessageUrl(b.url)?'✈️ رسالة Telegram — تفتح داخل التطبيق':library[b.id]?'✓ محفوظ في الجهاز والتنزيلات':'سيتم تنزيله عند أول فتح'}</Text>
+    <Action label={busy===b.id?(isTelegramMessageUrl(b.url)?'جاري فتح Telegram…':'جاري التنزيل والحفظ…'):isTelegramMessageUrl(b.url)?'فتح رسالة Telegram':'':library[b.id]?'فتح الملف المحفوظ':'تنزيل وفتح الملف'} icon={isTelegramMessageUrl(b.url)?'✈️':library[b.id]?'✓':'📖'} onPress={()=>cacheAndOpen(b)}/>
     {teacher&&<View style={{flexDirection:'row',gap:8,marginTop:6}}>
       <Pressable onPress={()=>startEdit(b)} style={{flex:1,borderWidth:1,borderColor:C.border,borderRadius:10,padding:11,alignItems:'center'}}><Text style={{fontWeight:'900',color:C.navy}}>✏️ تعديل</Text></Pressable>
       <Pressable onPress={()=>removeLink(b)} style={{flex:1,borderWidth:1,borderColor:'#ef4444',borderRadius:10,padding:11,alignItems:'center'}}><Text style={{fontWeight:'900',color:'#dc2626'}}>🗑 حذف</Text></Pressable>
     </View>}
     {teacher&&library[b.id]&&<Pressable onPress={()=>clearCachedFile(b)} style={{padding:8,alignItems:'center'}}><Text style={{fontSize:12,color:C.muted}}>إزالة النسخة المحفوظة من الجهاز</Text></Pressable>}
   </Card>)}{!links.length&&<Card><Text style={{textAlign:'center',color:C.muted}}>لا توجد روابط منشورة لهذا الصف والمادة.</Text></Card>}</Section>}
-  {subject&&<Section title="المحتوى المدمج">{list.length?list.map(b=><Card key={b.id}><Text style={{fontSize:17,fontWeight:'900',color:C.navy,textAlign:'right'}}>{b.title}</Text><Text style={{color:C.muted,textAlign:'right',marginTop:5}}>{b.description}</Text><Action label="قراءة المحتوى" icon="📖" onPress={()=>router.push({pathname:'/book',params:{id:b.id,grade:b.grade,subject:b.subject}})}/></Card>):<Card><Text style={{textAlign:'center',color:C.muted}}>لا يوجد محتوى مدمج لهذا الصف والمادة.</Text></Card>}</Section>}
+  {subject&&<Section title="المحتوى المدمج">{list.length?list.map(b=><Card key={b.id}><Text style={{fontSize:17,fontWeight:'900',color:C.navy,textAlign:'right'}}>{b.title}</Text><Text style={{color:C.muted,textAlign:'right',marginTop:5}}>{b.description}</Text><Action label="قراءة المحتوى" icon="📖" onPress={()=>router.push({pathname:'/book',params:{id:b.id,grade:b.grade,subject:b.subject}}}/></Card>):<Card><Text style={{textAlign:'center',color:C.muted}}>لا يوجد محتوى مدمج لهذا الصف والمادة.</Text></Section>}
  </Page>;
 }
