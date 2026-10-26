@@ -9,6 +9,12 @@ import { Action, Card, Page, Section, C, styles } from '../src/ui';
 
 const isTelegramMessageUrl = (raw: string) => /^https?:\/\/(?:www\.)?t\.me\/(?:s\/)?[^/]+\/\d+(?:[?#].*)?$/i.test(raw.trim());
 
+const telegramWebUrl = (raw: string) => {
+ const url=raw.trim();
+ const match=url.match(/^https?:\/\/(?:www\.)?t\.me\/(?:s\/)?([^/]+)\/(\d+)(.*)$/i);
+ return match?`https://t.me/s/${match[1]}/${match[2]}${match[3]||''}`:url;
+};
+
 export default function BooksScreen(){
  const p=useLocalSearchParams<{subject?:string;grade?:string;role?:string;name?:string}>();
  const subject=p.subject; const grade=p.grade; const teacher=p.role==='teacher';
@@ -24,7 +30,7 @@ export default function BooksScreen(){
  const saveEdit=async()=>{const old=links.find(x=>x.id===editingId);if(!old||!name.trim()||!/^https?:\/\//i.test(url.trim()))return Alert.alert('بيانات ناقصة','أدخل اسمًا ورابطًا صحيحًا يبدأ بـ https://');const changed:CloudBookLink={...old,name:name.trim(),url:url.trim()};try{await updateBookLink(changed);setLinks(x=>x.map(v=>v.id===changed.id?changed:v));if(changed.url!==old.url)await removePdf(changed.id);resetForm();await refreshLibrary();Alert.alert('تم التعديل','تم تحديث بيانات الملف للطلاب. إذا تغيّر الرابط فسيتم تنزيل النسخة الجديدة عند فتحه.');}catch(error){const code=String((error as any)?.code||'unknown');Alert.alert('تعذر التعديل',code.includes('permission-denied')?'صلاحيات Firestore لا تسمح بالتعديل.':'تعذر حفظ التعديل الآن.');}};
  const removeLink=(item:CloudBookLink)=>{Alert.alert('حذف الملف',`هل تريد حذف «${item.name}» من ملفات الطلاب؟`,[{text:'إلغاء',style:'cancel'},{text:'حذف',style:'destructive',onPress:async()=>{try{await deleteBookLink(item.id);await removePdf(item.id);setLinks(x=>x.filter(v=>v.id!==item.id));if(editingId===item.id)resetForm();await refreshLibrary();Alert.alert('تم الحذف','تم حذف الملف من قائمة الملفات المنشورة والنسخة المحفوظة من هذا الجهاز.');}catch(error){const code=String((error as any)?.code||'unknown');Alert.alert('تعذر الحذف',code.includes('permission-denied')?'صلاحيات Firestore لا تسمح بالحذف.':'تعذر حذف الملف الآن.');}}}]);};
  const clearCachedFile=async(item:CloudBookLink)=>{try{await removePdf(item.id);await refreshLibrary();Alert.alert('تمت إزالة النسخة المحلية','سيتم تنزيل الملف من جديد عند فتحه.');}catch{Alert.alert('تعذر الإزالة','تعذر إزالة النسخة المحفوظة من الجهاز.');}};
- const openTelegramMessage=async(item:CloudBookLink)=>{setBusy(item.id);try{await WebBrowser.openBrowserAsync(item.url.trim(),{enableBarCollapsing:true,showTitle:true});}catch{Alert.alert('تعذر فتح Telegram','تعذر فتح رسالة Telegram داخل التطبيق. تأكد من اتصال الإنترنت ثم حاول مرة أخرى.');}finally{setBusy(null);}};
+ const openTelegramMessage=async(item:CloudBookLink)=>{setBusy(item.id);try{await WebBrowser.openBrowserAsync(telegramWebUrl(item.url),{enableBarCollapsing:true,showTitle:true});}catch{Alert.alert('تعذر فتح Telegram','تعذر فتح رسالة Telegram داخل التطبيق. تأكد من اتصال الإنترنت ثم حاول مرة أخرى.');}finally{setBusy(null);}};
  const cacheAndOpen=async(item:CloudBookLink)=>{if(isTelegramMessageUrl(item.url)){await openTelegramMessage(item);return;}setBusy(item.id);try{let local=await getLocalPdf(item.id);if(!local)local=await downloadPdf(item);await refreshLibrary();router.push({pathname:'/pdf-viewer',params:{uri:local.uri,title:item.name,bookId:item.id}});}catch(error){Alert.alert('تعذر فتح الملف',pdfErrorMessage(error));}finally{setBusy(null);}};
  const list=books.filter(b=>(!subject||b.subject===subject)&&(!grade||b.grade===grade));
  return <Page title={subject||'الكتب والملازم'} subtitle={grade?`${grade} • ${subject||'العلوم'}`:'اختر المادة الدراسية'} onBack={()=>router.back()}>
