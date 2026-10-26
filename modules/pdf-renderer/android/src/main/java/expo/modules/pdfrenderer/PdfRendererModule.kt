@@ -1,11 +1,16 @@
 package expo.modules.pdfrenderer
 
+import android.content.ContentUris
+import android.content.ContentValues
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
 import android.os.ParcelFileDescriptor
+import android.provider.MediaStore
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.io.File
@@ -14,22 +19,30 @@ import java.io.IOException
 
 class PdfRendererModule : Module() {
   private val lock = Any()
+  private val downloadsFolder = "Download/المقرر الدراسي"
+
   override fun definition() = ModuleDefinition {
     Name("PdfRenderer")
     AsyncFunction("probe") { uri: String -> probe(toPath(uri)) }
     AsyncFunction("renderPage") { uri: String, pageIndex: Int, targetWidth: Int -> renderPage(toPath(uri), pageIndex, targetWidth) }
     AsyncFunction("purge") { uri: String -> purge(toPath(uri)) }
+    AsyncFunction("saveToDownloads") { uri: String, fileName: String -> saveToDownloads(toPath(uri), fileName) }
+    AsyncFunction("deleteFromDownloads") { uri: String -> deleteFromDownloads(uri) }
   }
+
   private fun toPath(uri: String) = if (uri.startsWith("file://")) Uri.parse(uri).path ?: uri.removePrefix("file://") else uri
   private fun result(ok: Boolean, reason: String, size: Double, pages: Int) = mapOf("ok" to ok, "reason" to reason, "size" to size, "pages" to pages)
+
   private fun openRenderer(file: File): PdfRenderer {
     val descriptor = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
     return try { PdfRenderer(descriptor) } catch (e: Exception) { try { descriptor.close() } catch (_: Exception) {}; throw e }
   }
+
   private fun readHead(file: File): String = file.inputStream().use { input ->
     val buffer = ByteArray(1024); val count = input.read(buffer)
     if (count <= 0) "" else String(buffer, 0, count, Charsets.ISO_8859_1)
   }
+
   private fun probe(path: String): Map<String, Any> {
     val file = File(path)
     if (!file.exists() || !file.isFile) return result(false, "missing", 0.0, 0)
@@ -41,8 +54,10 @@ class PdfRendererModule : Module() {
     catch (_: SecurityException) { result(false, "password", size, 0) }
     catch (_: Exception) { result(false, "corrupt", size, 0) }
   }
+
   private fun pageResult(file: File, width: Int, height: Int) = mapOf("uri" to Uri.fromFile(file).toString(), "width" to width, "height" to height)
   private fun cachePrefix(path: String) = Integer.toHexString(path.hashCode()) + "_"
+
   private fun renderPage(path: String, pageIndex: Int, requestedWidth: Int): Map<String, Any> {
     val context = appContext.reactContext ?: throw IllegalStateException("React context is not available")
     val file = File(path); if (!file.exists()) throw IOException("PDF file not found")
@@ -71,9 +86,67 @@ class PdfRendererModule : Module() {
       } finally { bitmap?.recycle(); pdfPage.close() }
     } }
   }
+
   private fun purge(path: String) {
     val context = appContext.reactContext ?: return
     val dir = File(context.cacheDir, "pdf-pages"); val prefix = cachePrefix(path)
     dir.listFiles()?.forEach { if (it.name.startsWith(prefix)) it.delete() }
+  }
+
+  private fun safeDisplayName(fileName: String): String {
+    val cleaned = fileName.trim().replace(Regex("[\\\\/:*?\"<>|]"), "_")
+    return if (cleaned.lowercase().endsWith(".pdf")) cleaned else "$cleaned.pdf"
+  }
+
+  private fun saveToDownloads(path: String, fileName: String): String {
+    val source = File(path)
+    if (!source.exists() || !source.isFile || source.length() == 0L) throw IOException("PDF file not found")
+    val context = appContext.reactContext ?: throw IllegalStateException("React context is not available")
+    val displayName = safeDisplayName(fileName)
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      val resolver = context.contentResolver
+      val collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI
+      val projection = arrayOf(MediaStore.Downloads._ID)
+      val selection = "${MediaStore.Downloads.DISPLAY_NAME} = ? AND ${MediaStore.Downloads.RELATIVE_PATH} = ?"
+      resolver.query(collection, projection, selection, arrayOf(displayName, "$downloadsFolder/"), null)?.use { cursor ->
+        val idIndex = cursor.getColumnIndexOrThrow(MediaStore.Downloads._ID)
+        while (cursor.moveToNext()) resolver.delete(ContentUris.withAppendedId(collection, cursor.getLong(idIndex)), null, null)
+      }
+
+      val values = ContentValues().apply {
+        put(MediaStore.Downloads.DISPLAY_NAME, displayName)
+        put(MediaStore.Downloads.MIME_TYPE, "application/pdf")
+        put(MediaStore.Downloads.RELATIVE_PATH, "$downloadsFolder/")
+        put(MediaStore.Downloads.IS_PENDING, 1)
+      }
+      val uri = resolver.insert(collection, values) ?: throw IOException("Unable to create Downloads file")
+      try {
+        resolver.openOutputStream(uri)?.use { output -> source.inputStream().use { input -> input.copyTo(output) } }
+          ?: throw IOException("Unable to open Downloads file")
+        values.clear(); values.put(MediaStore.Downloads.IS_PENDING, 0)
+        resolver.update(uri, values, null, null)
+        return uri.toString()
+      } catch (e: Exception) {
+        resolver.delete(uri, null, null)
+        throw e
+      }
+    }
+
+    @Suppress("DEPRECATION")
+    val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).resolve("المقرر الدراسي")
+    if (!dir.exists() && !dir.mkdirs()) throw IOException("Unable to create Downloads folder")
+    @Suppress("DEPRECATION") val target = File(dir, displayName)
+    source.inputStream().use { input -> target.outputStream().use { output -> input.copyTo(output) } }
+    return Uri.fromFile(target).toString()
+  }
+
+  private fun deleteFromDownloads(uriString: String): Boolean {
+    val context = appContext.reactContext ?: return false
+    return try {
+      if (uriString.startsWith("content://")) context.contentResolver.delete(Uri.parse(uriString), null, null) > 0
+      else if (uriString.startsWith("file://")) File(Uri.parse(uriString).path ?: return false).delete()
+      else false
+    } catch (_: Exception) { false }
   }
 }
