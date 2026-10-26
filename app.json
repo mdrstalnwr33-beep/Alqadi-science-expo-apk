@@ -2,38 +2,21 @@
   "expo": {
     "name": "تطبيق القاضي للعلوم",
     "slug": "alqadi-science-app",
-    "version": "0.4.1",
+    "version": "0.5.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "splash": {
-      "image": "./assets/icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#1E3A8A"
-    },
+    "splash": {"image":"./assets/icon.png","resizeMode":"contain","backgroundColor":"#1E3A8A"},
     "android": {
       "package": "com.nourascience.app",
-      "versionCode": 11,
+      "versionCode": 12,
       "supportsRtl": true,
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon-foreground.png",
-        "backgroundColor": "#1E3A8A"
-      }
+      "adaptiveIcon": {"foregroundImage":"./assets/adaptive-icon-foreground.png","backgroundColor":"#1E3A8A"}
     },
     "plugins": [
       "expo-router",
       "expo-local-authentication",
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "buildArchs": ["arm64-v8a"],
-            "enableBundleCompression": true,
-            "enableMinifyInReleaseBuilds": false,
-            "useLegacyPackaging": true
-          }
-        }
-      ]
+      ["expo-build-properties", {"android":{"buildArchs":["arm64-v8a"],"enableBundleCompression":true,"enableMinifyInReleaseBuilds":false,"useLegacyPackaging":true}}]
     ]
   }
 }
