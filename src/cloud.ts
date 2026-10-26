@@ -38,14 +38,27 @@ export async function claimStudentDevice(code:string,deviceId:string):Promise<'c
     if(data.active===false)return 'inactive';
     const current=typeof data.activeDeviceId==='string'?data.activeDeviceId:'';
     if(current&&current!==deviceId)return 'occupied';
-    tx.update(ref,{activeDeviceId:deviceId,lastLoginAt:serverTimestamp(),updatedAt:Date.now()});
+    tx.update(ref,{activeDeviceId:deviceId,lastLoginAt:serverTimestamp(),lastSeenAt:Date.now(),updatedAt:Date.now()});
     return current===deviceId?'same-device':'claimed';
   });
+}
+export async function touchStudentPresence(code:string,deviceId:string){
+  if(!cleanCode(code))return false;
+  const ref=doc(db,'students',code);
+  await runTransaction(db,async tx=>{const snap=await tx.get(ref);if(!snap.exists())return;if(snap.data().active===false)return;if(snap.data().activeDeviceId!==deviceId)return;tx.update(ref,{lastSeenAt:Date.now(),updatedAt:Date.now()})});
+  return true;
 }
 export async function releaseStudentDevice(code:string,deviceId:string){
  if(!cleanCode(code))return;
  const ref=doc(db,'students',code);
- await runTransaction(db,async tx=>{const snap=await tx.get(ref);if(snap.exists()&&snap.data().activeDeviceId===deviceId)tx.update(ref,{activeDeviceId:'',updatedAt:Date.now()})});
+ await runTransaction(db,async tx=>{const snap=await tx.get(ref);if(snap.exists()&&snap.data().activeDeviceId===deviceId)tx.update(ref,{activeDeviceId:'',lastSeenAt:0,updatedAt:Date.now()})});
+}
+export async function getStudentPresence(code:string){
+ if(!cleanCode(code))return null;
+ const snap=await getDoc(doc(db,'students',code));
+ if(!snap.exists())return null;
+ const data=snap.data();
+ return {lastSeenAt:typeof data.lastSeenAt==='number'?data.lastSeenAt:0,lastLoginAt:data.lastLoginAt||null,activeDeviceId:typeof data.activeDeviceId==='string'?data.activeDeviceId:''};
 }
 
 export async function saveCloudTeacherProfile(profile:{name:string;school:string;bio:string;photo?:string}){
