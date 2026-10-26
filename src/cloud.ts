@@ -15,9 +15,11 @@ export async function setCloudTeacherCode(code:string) {
 }
 export async function getCloudStudent(code:string): Promise<LocalStudent|null> {
   if (!cleanCode(code)) return null;
-  const snap = await getDoc(doc(db, 'students', code));
+  const ref=doc(db, 'students', code);
+  const snap = await getDoc(ref);
   if (!snap.exists()) return null;
   const data = snap.data();
+  if(data.active!==false&&typeof data.activeDeviceId==='string'&&data.activeDeviceId){try{await setDoc(ref,{lastSeenAt:Date.now(),updatedAt:Date.now()},{merge:true})}catch{}}
   return { id:String(data.id || code), name:String(data.name || 'الطالب'), code, grade:String(data.grade || ''), active:data.active !== false };
 }
 export async function saveCloudStudent(student:LocalStudent) {
