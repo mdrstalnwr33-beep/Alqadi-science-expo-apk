@@ -2,7 +2,7 @@ name: Android APK
 
 on:
   push:
-    branches: [main, ui-organization]
+    branches: [main, ui-organization, telegram-pdf-download]
   workflow_dispatch:
 
 concurrency:
