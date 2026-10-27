@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, PanResponder, PixelRatio, Pressable, Text, View, useWindowDimensions, type GestureResponderEvent, type ViewToken } from 'react-native';
+import { ActivityIndicator, FlatList, Image, PanResponder, PixelRatio, Pressable, ScrollView, Text, View, useWindowDimensions, type GestureResponderEvent, type ViewToken } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { renderPdfPage, type PdfPage } from '../modules/pdf-renderer';
 import { downloadPdf, getLocalPdf, pdfErrorMessage } from '../src/pdfStore';
@@ -16,15 +16,16 @@ function touchDistance(event: GestureResponderEvent): number {
   return Math.sqrt(dx * dx + dy * dy);
 }
 
-function PdfPageView({ uri, index, width, zoom, onPinchStart, onPinchMove, onPinchEnd }: {
-  uri: string; index: number; width: number; zoom: number;
+function PdfPageView({ uri, index, baseWidth, zoom, onPinchStart, onPinchMove, onPinchEnd }: {
+  uri: string; index: number; baseWidth: number; zoom: number;
   onPinchStart: (event: GestureResponderEvent) => void;
   onPinchMove: (event: GestureResponderEvent) => void;
   onPinchEnd: () => void;
 }) {
   const [page, setPage] = useState<PdfPage | null>(null);
   const [failed, setFailed] = useState(false);
-  const pixelWidth = Math.round(width * PixelRatio.get());
+  const pixelWidth = Math.round(baseWidth * PixelRatio.get());
+
   useEffect(() => {
     let alive = true;
     setFailed(false);
@@ -32,7 +33,11 @@ function PdfPageView({ uri, index, width, zoom, onPinchStart, onPinchMove, onPin
     renderPdfPage(uri, index, pixelWidth).then(x => { if (alive) setPage(x); }).catch(() => { if (alive) setFailed(true); });
     return () => { alive = false; };
   }, [uri, index, pixelWidth]);
-  const height = page ? (width * page.height) / page.width : width * 1.414;
+
+  const baseHeight = page ? (baseWidth * page.height) / page.width : baseWidth * 1.414;
+  const scaledWidth = baseWidth * zoom;
+  const scaledHeight = baseHeight * zoom;
+
   const panResponder = useRef(PanResponder.create({
     onStartShouldSetPanResponder: e => e.nativeEvent.touches.length >= 2,
     onMoveShouldSetPanResponder: e => e.nativeEvent.touches.length >= 2,
@@ -42,11 +47,22 @@ function PdfPageView({ uri, index, width, zoom, onPinchStart, onPinchMove, onPin
     onPanResponderTerminate: onPinchEnd,
   })).current;
 
-  return <View {...panResponder.panHandlers} style={{ width, height, backgroundColor: '#fff', marginBottom: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.border, overflow: 'visible' }}>
-    <View style={{ width, height, transform: [{ scale: zoom }] }}>
-      {page ? <Image source={{ uri: page.uri }} style={{ width, height }} resizeMode="contain" /> : failed ? <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: C.muted }}>تعذر عرض الصفحة {index + 1}</Text></View> : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={C.navy} /></View>}
+  return (
+    <View style={{ width: baseWidth, height: scaledHeight, marginBottom: 10, backgroundColor: '#fff', borderWidth: 1, borderColor: C.border, overflow: 'visible' }}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={zoom > 1}
+        bounces={false}
+        scrollEnabled={zoom > 1}
+        contentContainerStyle={{ width: scaledWidth, minHeight: scaledHeight }}
+        {...panResponder.panHandlers}
+      >
+        <View style={{ width: scaledWidth, height: scaledHeight, justifyContent: 'flex-start', alignItems: 'flex-start' }}>
+          {page ? <Image source={{ uri: page.uri }} style={{ width: scaledWidth, height: scaledHeight }} resizeMode="stretch" /> : failed ? <View style={{ width: scaledWidth, height: scaledHeight, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: C.muted }}>تعذر عرض الصفحة {index + 1}</Text></View> : <View style={{ width: scaledWidth, height: scaledHeight, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={C.navy} /></View>}
+        </View>
+      </ScrollView>
     </View>
-  </View>;
+  );
 }
 
 export default function PdfViewerScreen() {
@@ -84,7 +100,7 @@ export default function PdfViewerScreen() {
 
   useEffect(() => { load(); }, [load]);
   const onViewable = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => { const x = viewableItems[0]; if (x?.index != null) setCurrent(x.index + 1); }).current;
-  const pageWidth = Math.min(width - 16, 900);
+  const baseWidth = Math.min(width - 16, 900);
 
   const pinchStart = (event: GestureResponderEvent) => {
     const distance = touchDistance(event);
@@ -106,7 +122,7 @@ export default function PdfViewerScreen() {
     {state.status === 'loading' && <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14 }}><ActivityIndicator size="large" color={C.navy} /><Text style={{ color: C.muted }}>{state.text}</Text></View>}
     {state.status === 'error' && <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 }}><Text style={{ fontSize: 40 }}>⚠️</Text><Text style={{ color: C.text, fontSize: 16, textAlign: 'center', lineHeight: 26 }}>{state.message}</Text><Pressable onPress={load} style={{ backgroundColor: C.navy, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 28 }}><Text style={{ color: '#fff', fontWeight: '800' }}>إعادة المحاولة</Text></Pressable><Pressable onPress={() => router.back()}><Text style={{ color: C.blue, fontWeight: '700' }}>رجوع</Text></Pressable></View>}
     {state.status === 'ready' && <>
-      <FlatList data={Array.from({ length: state.pages }, (_, i) => i)} keyExtractor={String} renderItem={({ item }) => <PdfPageView uri={state.uri} index={item} width={pageWidth} zoom={zoom} onPinchStart={pinchStart} onPinchMove={pinchMove} onPinchEnd={pinchEnd} />} contentContainerStyle={{ padding: 8, alignItems: 'center' }} initialNumToRender={2} maxToRenderPerBatch={2} windowSize={5} onViewableItemsChanged={onViewable} viewabilityConfig={{ itemVisiblePercentThreshold: 40 }} />
+      <FlatList data={Array.from({ length: state.pages }, (_, i) => i)} keyExtractor={String} renderItem={({ item }) => <PdfPageView uri={state.uri} index={item} baseWidth={baseWidth} zoom={zoom} onPinchStart={pinchStart} onPinchMove={pinchMove} onPinchEnd={pinchEnd} />} contentContainerStyle={{ padding: 8, alignItems: 'center' }} initialNumToRender={2} maxToRenderPerBatch={2} windowSize={5} onViewableItemsChanged={onViewable} viewabilityConfig={{ itemVisiblePercentThreshold: 40 }} />
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 8, paddingBottom: insets.bottom + 8, backgroundColor: C.bg, borderTopWidth: 1, borderTopColor: C.border }}>
         <Pressable disabled={zoom <= 1} onPress={() => setZoom(z => Math.max(1, z - .5))} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: C.navy, alignItems: 'center', justifyContent: 'center', opacity: zoom <= 1 ? .35 : 1 }}><Text style={{ color: '#fff', fontSize: 26 }}>−</Text></Pressable>
         <Text style={{ color: C.navy, fontWeight: '800' }}>صفحة {current} من {state.pages} • {Math.round(zoom * 100)}%</Text>
