@@ -9,10 +9,10 @@ export type PdfErrorCode = 'invalid-url' | 'network' | 'unsupported' | 'storage'
 export class PdfError extends Error { code: PdfErrorCode; constructor(code: PdfErrorCode) { super(code); this.code = code; } }
 const messages: Record<PdfErrorCode, string> = {
   'invalid-url': 'رابط الملزمة غير صالح. يجب أن يبدأ بـ https://',
-  network: 'تعذر تنزيل الملف. تأكد من اتصال الإنترنت وأن ملف Google Drive متاح لأي شخص لديه الرابط، ثم حاول مرة أخرى.',
+  network: 'تعذر تنزيل الملف. تأكد من اتصال الإنترنت وأن رابط الملف متاح، ثم حاول مرة أخرى.',
   unsupported: 'قارئ PDF غير متاح في هذه النسخة. ثبّت النسخة الأحدث من التطبيق.',
   storage: 'تم تنزيل الملف، لكن تعذر حفظه في مجلد التنزيلات/المقرر الدراسي. تحقق من مساحة التخزين ثم حاول مرة أخرى.',
-  html: 'رابط Google Drive أعاد صفحة ويب بدل ملف PDF. سيحاول التطبيق تحويل رابط Drive تلقائيًا؛ إذا استمر الخطأ اجعل المشاركة: أي شخص لديه الرابط.',
+  html: 'رابط الملف أعاد صفحة ويب بدل ملف PDF. استخدم رابط MediaFire للملف أو رابط PDF مباشر.',
   'not-pdf': 'الملف الذي تم تنزيله ليس بصيغة PDF.',
   corrupt: 'ملف PDF تالف أو غير مكتمل. حاول التنزيل مرة أخرى.',
   empty: 'الملف الذي تم تنزيله فارغ.',
@@ -21,104 +21,54 @@ const messages: Record<PdfErrorCode, string> = {
 };
 export const pdfErrorMessage = (error: unknown) => error instanceof PdfError ? messages[error.code] : 'حدث خطأ غير متوقع أثناء فتح الملف.';
 
-function driveFileId(raw: string): string | null {
-  const url = raw.trim();
-  const patterns = [
-    /https?:\/\/drive\.google\.com\/file\/d\/([\w-]+)/i,
-    /https?:\/\/drive\.google\.com\/(?:open|uc)\?(?:[^#]*&)?id=([\w-]+)/i,
-    /https?:\/\/drive\.google\.com\/drive\/folders\/([\w-]+)/i
-  ];
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match?.[1]) return match[1];
-  }
-  return null;
+function mediaFireUrl(raw: string): boolean {
+  return /^https?:\/\/(?:www\.)?mediafire\.com\/file\//i.test(raw.trim());
 }
 
-function driveDownloadCandidates(id: string): string[] {
-  return [
-    `https://drive.usercontent.google.com/download?id=${id}&export=download&confirm=t`,
-    `https://drive.google.com/uc?export=download&id=${id}&confirm=t`,
-    `https://drive.google.com/uc?id=${id}&export=download&confirm=t`
-  ];
-}
-
-function absoluteDriveUrl(value: string): string {
+function absoluteUrl(value: string, base: string): string {
   const decoded = value
     .replace(/&amp;/g, '&')
-    .replace(/\\u003d/g, '=')
     .replace(/\\u0026/g, '&')
+    .replace(/\\u003d/g, '=')
     .trim();
   if (/^https?:\/\//i.test(decoded)) return decoded;
   if (decoded.startsWith('//')) return `https:${decoded}`;
-  if (decoded.startsWith('/')) return `https://drive.google.com${decoded}`;
-  return decoded;
+  try { return new URL(decoded, base).toString(); } catch { return decoded; }
 }
 
-function extractDriveDownloadUrl(html: string, fallback: string): string | null {
-  // Google Drive has used both a form and a direct confirmation link for large shared files.
-  const formRe = /<form\b[^>]*\baction\s*=\s*["']([^"']+)["'][^>]*>([\s\S]*?)<\/form>/i;
-  const form = html.match(formRe);
-  if (form?.[1]) {
-    const action = absoluteDriveUrl(form[1]);
-    const fields: string[] = [];
-    const inputRe = /<input\b[^>]*>/gi;
-    let input: RegExpExecArray | null;
-    while ((input = inputRe.exec(form[2] || ''))) {
-      const tag = input[0];
-      const name = tag.match(/\bname\s*=\s*["']([^"']+)["']/i)?.[1];
-      const value = tag.match(/\bvalue\s*=\s*["']([^"']*)["']/i)?.[1] ?? '';
-      if (name) fields.push(`${encodeURIComponent(name)}=${encodeURIComponent(value)}`);
-    }
-    return fields.length ? `${action}${action.includes('?') ? '&' : '?'}${fields.join('&')}` : action;
-  }
-
-  const hrefPatterns = [
-    /href\s*=\s*["']([^"']*(?:drive\.usercontent\.google\.com|drive\.google\.com)[^"']*(?:download|uc\?)[^"']*)["']/i,
-    /["'](https?:\\?\/\\?\/drive\.(?:usercontent\.)?google\.com[^"']*(?:download|uc\?)[^"']*)["']/i,
-    /["'](\/uc\?[^"']*(?:export=download|download)[^"']*)["']/i
+function extractMediaFireDownloadUrl(html: string, base: string): string | null {
+  const patterns = [
+    /href=["']([^"']+)["'][^>]*(?:id|class)=["'][^"']*(?:download|download_link)[^"']*["']/i,
+    /(?:id|class)=["'][^"']*(?:download|download_link)[^"']*["'][^>]*href=["']([^"']+)["']/i,
+    /["'](https?:\\?\/\\?\/download[^"']*mediafire\\.[^"']+)["']/i,
+    /["'](https?:\\?\/\\?\/[^"']*\.mediafire\.com\\?\/[^"']*download[^"']*)["']/i
   ];
-  for (const pattern of hrefPatterns) {
+  for (const pattern of patterns) {
     const match = html.match(pattern);
-    if (match?.[1]) return absoluteDriveUrl(match[1]);
+    if (match?.[1]) return absoluteUrl(match[1], base);
   }
 
-  const confirmMatch = html.match(/[?&]confirm=([\w-]+)/i);
-  if (confirmMatch?.[1]) {
-    try {
-      const base = new URL(fallback);
-      base.searchParams.set('confirm', confirmMatch[1]);
-      return base.toString();
-    } catch {}
+  // MediaFire can embed the download URL inside a JavaScript string.
+  const scriptMatches = html.match(/https?:\\?\/\\?\/[^"'\\s]+mediafire\\.[^"'\\s]+/gi) || [];
+  for (const candidate of scriptMatches) {
+    const clean = candidate.replace(/\\\\\//g, '/');
+    if (/download/i.test(clean)) return clean;
   }
   return null;
 }
 
-async function resolveDriveDownloadUrl(raw: string): Promise<string> {
-  const id = driveFileId(raw);
-  if (!id) return raw;
-  const candidates = driveDownloadCandidates(id);
-  for (const candidate of candidates) {
-    try {
-      const response = await fetch(candidate, { redirect: 'follow' as RequestRedirect });
-      const type = (response.headers.get('content-type') || '').toLowerCase();
-      if (type.includes('application/pdf') || type.includes('application/octet-stream')) return response.url || candidate;
-      if (type.includes('text/html')) {
-        const html = await response.text();
-        const confirmed = extractDriveDownloadUrl(html, response.url || candidate);
-        if (confirmed) return confirmed;
-      }
-    } catch {
-      // Try the next Drive endpoint; the final file download is attempted below.
-    }
-  }
-  return candidates[0];
+async function resolveMediaFireDownloadUrl(raw: string): Promise<string> {
+  const response = await fetch(raw, { redirect: 'follow' as RequestRedirect });
+  const type = (response.headers.get('content-type') || '').toLowerCase();
+  if (type.includes('application/pdf') || type.includes('application/octet-stream')) return response.url || raw;
+  const html = await response.text();
+  const direct = extractMediaFireDownloadUrl(html, response.url || raw);
+  if (!direct) throw new PdfError('html');
+  return direct;
 }
 
 export function normalizePdfUrl(raw: string): string {
   const url = raw.trim();
-  const id = driveFileId(url);
-  if (id) return driveDownloadCandidates(id)[0];
   if (/^https?:\/\/(www\.)?dropbox\.com\//i.test(url)) return /[?&]dl=\d/.test(url) ? url.replace(/([?&])dl=\d/, '$1dl=1') : url + (url.includes('?') ? '&' : '?') + 'dl=1';
   return url;
 }
@@ -145,10 +95,11 @@ export async function downloadPdf(item: { id: string; name: string; url: string 
   let url = item.url.trim();
   if (!/^https?:\/\//i.test(url)) throw new PdfError('invalid-url');
   try {
-    if (driveFileId(url)) url = await resolveDriveDownloadUrl(url);
+    if (mediaFireUrl(url)) url = await resolveMediaFireDownloadUrl(url);
     else url = normalizePdfUrl(url);
-  } catch {
-    url = normalizePdfUrl(url);
+  } catch (error) {
+    if (error instanceof PdfError) throw error;
+    throw new PdfError('network');
   }
 
   const target = new File(Paths.document, fileNameFor(item.id));
