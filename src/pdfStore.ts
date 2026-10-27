@@ -25,7 +25,8 @@ function driveFileId(raw: string): string | null {
   const url = raw.trim();
   const patterns = [
     /https?:\/\/drive\.google\.com\/file\/d\/([\w-]+)/i,
-    /https?:\/\/drive\.google\.com\/(?:open|uc)\?(?:[^#]*&)?id=([\w-]+)/i
+    /https?:\/\/drive\.google\.com\/(?:open|uc)\?(?:[^#]*&)?id=([\w-]+)/i,
+    /https?:\/\/drive\.google\.com\/drive\/folders\/([\w-]+)/i
   ];
   for (const pattern of patterns) {
     const match = url.match(pattern);
@@ -37,26 +38,60 @@ function driveFileId(raw: string): string | null {
 function driveDownloadCandidates(id: string): string[] {
   return [
     `https://drive.usercontent.google.com/download?id=${id}&export=download&confirm=t`,
-    `https://drive.google.com/uc?export=download&id=${id}`,
-    `https://drive.google.com/uc?id=${id}&export=download`
+    `https://drive.google.com/uc?export=download&id=${id}&confirm=t`,
+    `https://drive.google.com/uc?id=${id}&export=download&confirm=t`
   ];
 }
 
-function htmlFormDownloadUrl(html: string, fallback: string): string | null {
-  const form = html.match(/<form[^>]+action=["']([^"']+)["'][^>]*>/i);
-  if (!form?.[1]) return null;
-  let action = form[1].replace(/&amp;/g, '&');
-  if (!/^https?:\/\//i.test(action)) action = `https://drive.usercontent.google.com${action.startsWith('/') ? '' : '/'}${action}`;
-  const fields: string[] = [];
-  const inputRe = /<input[^>]+(?:name|id)=["']([^"']+)["'][^>]+value=["']([^"']*)["'][^>]*>/gi;
-  let match: RegExpExecArray | null;
-  while ((match = inputRe.exec(html))) {
-    const name = match[1];
-    const value = match[2];
-    if (name && value != null) fields.push(`${encodeURIComponent(name)}=${encodeURIComponent(value)}`);
+function absoluteDriveUrl(value: string): string {
+  const decoded = value
+    .replace(/&amp;/g, '&')
+    .replace(/\\u003d/g, '=')
+    .replace(/\\u0026/g, '&')
+    .trim();
+  if (/^https?:\/\//i.test(decoded)) return decoded;
+  if (decoded.startsWith('//')) return `https:${decoded}`;
+  if (decoded.startsWith('/')) return `https://drive.google.com${decoded}`;
+  return decoded;
+}
+
+function extractDriveDownloadUrl(html: string, fallback: string): string | null {
+  // Google Drive has used both a form and a direct confirmation link for large shared files.
+  const formRe = /<form\b[^>]*\baction\s*=\s*["']([^"']+)["'][^>]*>([\s\S]*?)<\/form>/i;
+  const form = html.match(formRe);
+  if (form?.[1]) {
+    const action = absoluteDriveUrl(form[1]);
+    const fields: string[] = [];
+    const inputRe = /<input\b[^>]*>/gi;
+    let input: RegExpExecArray | null;
+    while ((input = inputRe.exec(form[2] || ''))) {
+      const tag = input[0];
+      const name = tag.match(/\bname\s*=\s*["']([^"']+)["']/i)?.[1];
+      const value = tag.match(/\bvalue\s*=\s*["']([^"']*)["']/i)?.[1] ?? '';
+      if (name) fields.push(`${encodeURIComponent(name)}=${encodeURIComponent(value)}`);
+    }
+    return fields.length ? `${action}${action.includes('?') ? '&' : '?'}${fields.join('&')}` : action;
   }
-  if (!fields.length) return action || fallback;
-  return `${action}${action.includes('?') ? '&' : '?'}${fields.join('&')}`;
+
+  const hrefPatterns = [
+    /href\s*=\s*["']([^"']*(?:drive\.usercontent\.google\.com|drive\.google\.com)[^"']*(?:download|uc\?)[^"']*)["']/i,
+    /["'](https?:\\?\/\\?\/drive\.(?:usercontent\.)?google\.com[^"']*(?:download|uc\?)[^"']*)["']/i,
+    /["'](\/uc\?[^"']*(?:export=download|download)[^"']*)["']/i
+  ];
+  for (const pattern of hrefPatterns) {
+    const match = html.match(pattern);
+    if (match?.[1]) return absoluteDriveUrl(match[1]);
+  }
+
+  const confirmMatch = html.match(/[?&]confirm=([\w-]+)/i);
+  if (confirmMatch?.[1]) {
+    try {
+      const base = new URL(fallback);
+      base.searchParams.set('confirm', confirmMatch[1]);
+      return base.toString();
+    } catch {}
+  }
+  return null;
 }
 
 async function resolveDriveDownloadUrl(raw: string): Promise<string> {
@@ -65,16 +100,16 @@ async function resolveDriveDownloadUrl(raw: string): Promise<string> {
   const candidates = driveDownloadCandidates(id);
   for (const candidate of candidates) {
     try {
-      const response = await fetch(candidate);
+      const response = await fetch(candidate, { redirect: 'follow' as RequestRedirect });
       const type = (response.headers.get('content-type') || '').toLowerCase();
-      if (type.includes('application/pdf') || type.includes('application/octet-stream')) return candidate;
+      if (type.includes('application/pdf') || type.includes('application/octet-stream')) return response.url || candidate;
       if (type.includes('text/html')) {
         const html = await response.text();
-        const confirmed = htmlFormDownloadUrl(html, candidate);
+        const confirmed = extractDriveDownloadUrl(html, response.url || candidate);
         if (confirmed) return confirmed;
       }
     } catch {
-      // File.downloadFileAsync below will make the final attempt.
+      // Try the next Drive endpoint; the final file download is attempted below.
     }
   }
   return candidates[0];
