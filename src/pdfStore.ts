@@ -1,4 +1,5 @@
 import { File, Paths } from 'expo-file-system';
+import * as LegacyFileSystem from 'expo-file-system/legacy';
 import { readJson, writeJson } from './storage';
 import { deletePdfFromDownloads, pdfRendererAvailable, probePdf, purgePdfCache, savePdfToDownloads, type PdfProbeReason } from '../modules/pdf-renderer';
 
@@ -21,21 +22,41 @@ const messages: Record<PdfErrorCode, string> = {
 };
 export const pdfErrorMessage = (error: unknown) => error instanceof PdfError ? messages[error.code] : 'حدث خطأ غير متوقع أثناء فتح الملف.';
 
+export type PdfDownloadState = {
+  status: 'downloading' | 'done' | 'error';
+  progress: number;
+  bytesWritten: number;
+  totalBytes: number;
+  error?: string;
+};
+const downloadStates = new Map<string, PdfDownloadState>();
+const downloadListeners = new Map<string, Set<(state: PdfDownloadState) => void>>();
+const activeDownloads = new Map<string, Promise<{ uri: string; pages: number }>>();
+
+function publishDownload(id: string, state: PdfDownloadState) {
+  downloadStates.set(id, state);
+  downloadListeners.get(id)?.forEach(listener => listener(state));
+}
+
+export function getPdfDownloadState(id: string): PdfDownloadState | null { return downloadStates.get(id) || null; }
+export function subscribePdfDownload(id: string, listener: (state: PdfDownloadState) => void) {
+  let set = downloadListeners.get(id);
+  if (!set) { set = new Set(); downloadListeners.set(id, set); }
+  set.add(listener);
+  const current = downloadStates.get(id);
+  if (current) listener(current);
+  return () => { set?.delete(listener); if (!set?.size) downloadListeners.delete(id); };
+}
+
 function mediaFireUrl(raw: string): boolean {
   return /^https?:\/\/(?:www\.)?mediafire\.com\/file\//i.test(raw.trim());
 }
-
 function absoluteUrl(value: string, base: string): string {
-  const decoded = value
-    .replace(/&amp;/g, '&')
-    .replace(/\\u0026/g, '&')
-    .replace(/\\u003d/g, '=')
-    .trim();
+  const decoded = value.replace(/&amp;/g, '&').replace(/\\u0026/g, '&').replace(/\\u003d/g, '=').trim();
   if (/^https?:\/\//i.test(decoded)) return decoded;
   if (decoded.startsWith('//')) return `https:${decoded}`;
   try { return new URL(decoded, base).toString(); } catch { return decoded; }
 }
-
 function extractMediaFireDownloadUrl(html: string, base: string): string | null {
   const patterns = [
     /href=["']([^"']+)["'][^>]*(?:id|class)=["'][^"']*(?:download|download_link)[^"']*["']/i,
@@ -43,20 +64,11 @@ function extractMediaFireDownloadUrl(html: string, base: string): string | null 
     /["'](https?:\\?\/\\?\/download[^"']*mediafire\\.[^"']+)["']/i,
     /["'](https?:\\?\/\\?\/[^"']*\.mediafire\.com\\?\/[^"']*download[^"']*)["']/i
   ];
-  for (const pattern of patterns) {
-    const match = html.match(pattern);
-    if (match?.[1]) return absoluteUrl(match[1], base);
-  }
-
-  // MediaFire can embed the download URL inside a JavaScript string.
+  for (const pattern of patterns) { const match = html.match(pattern); if (match?.[1]) return absoluteUrl(match[1], base); }
   const scriptMatches = html.match(/https?:\\?\/\\?\/[^"'\\s]+mediafire\\.[^"'\\s]+/gi) || [];
-  for (const candidate of scriptMatches) {
-    const clean = candidate.replace(/\\\\\//g, '/');
-    if (/download/i.test(clean)) return clean;
-  }
+  for (const candidate of scriptMatches) { const clean = candidate.replace(/\\\\\//g, '/'); if (/download/i.test(clean)) return clean; }
   return null;
 }
-
 async function resolveMediaFireDownloadUrl(raw: string): Promise<string> {
   const response = await fetch(raw, { redirect: 'follow' as RequestRedirect });
   const type = (response.headers.get('content-type') || '').toLowerCase();
@@ -66,13 +78,11 @@ async function resolveMediaFireDownloadUrl(raw: string): Promise<string> {
   if (!direct) throw new PdfError('html');
   return direct;
 }
-
 export function normalizePdfUrl(raw: string): string {
   const url = raw.trim();
   if (/^https?:\/\/(www\.)?dropbox\.com\//i.test(url)) return /[?&]dl=\d/.test(url) ? url.replace(/([?&])dl=\d/, '$1dl=1') : url + (url.includes('?') ? '&' : '?') + 'dl=1';
   return url;
 }
-
 const fileNameFor = (id: string) => `book-${id.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
 const safeDelete = (file: File) => { try { if (file.exists) file.delete(); } catch {} };
 export const getLibrary = () => readJson<PdfLibrary>(LIBRARY_KEY, {});
@@ -91,6 +101,14 @@ export async function getLocalPdf(id: string): Promise<{ uri: string; pages: num
 }
 
 export async function downloadPdf(item: { id: string; name: string; url: string }): Promise<{ uri: string; pages: number }> {
+  const existing = activeDownloads.get(item.id);
+  if (existing) return existing;
+  const task = performDownload(item);
+  activeDownloads.set(item.id, task);
+  try { return await task; } finally { activeDownloads.delete(item.id); }
+}
+
+async function performDownload(item: { id: string; name: string; url: string }): Promise<{ uri: string; pages: number }> {
   if (!pdfRendererAvailable) throw new PdfError('unsupported');
   let url = item.url.trim();
   if (!/^https?:\/\//i.test(url)) throw new PdfError('invalid-url');
@@ -98,30 +116,56 @@ export async function downloadPdf(item: { id: string; name: string; url: string 
     if (mediaFireUrl(url)) url = await resolveMediaFireDownloadUrl(url);
     else url = normalizePdfUrl(url);
   } catch (error) {
+    publishDownload(item.id, { status: 'error', progress: 0, bytesWritten: 0, totalBytes: 0, error: pdfErrorMessage(error) });
     if (error instanceof PdfError) throw error;
     throw new PdfError('network');
   }
 
   const target = new File(Paths.document, fileNameFor(item.id));
-  let saved: File;
-  try { saved = await File.downloadFileAsync(url, target, { idempotent: true }); } catch { safeDelete(target); throw new PdfError('network'); }
-  const probe = await probePdf(saved.uri).catch(() => null);
-  if (!probe || !probe.ok) { safeDelete(saved); throw new PdfError(probe ? probe.reason as Exclude<PdfProbeReason, 'ok'> : 'corrupt'); }
+  safeDelete(target);
+  publishDownload(item.id, { status: 'downloading', progress: 0, bytesWritten: 0, totalBytes: 0 });
+
+  let savedUri: string;
+  try {
+    const resumable = LegacyFileSystem.createDownloadResumable(
+      url,
+      target.uri,
+      {},
+      progress => {
+        const written = progress.totalBytesWritten || 0;
+        const total = progress.totalBytesExpectedToWrite || 0;
+        const percent = total > 0 ? Math.min(100, Math.round((written / total) * 100)) : 0;
+        publishDownload(item.id, { status: 'downloading', progress: percent, bytesWritten: written, totalBytes: total });
+      }
+    );
+    const result = await resumable.downloadAsync();
+    if (!result?.uri) throw new Error('download-failed');
+    savedUri = result.uri;
+  } catch {
+    safeDelete(target);
+    publishDownload(item.id, { status: 'error', progress: 0, bytesWritten: 0, totalBytes: 0, error: 'تعذر تنزيل الملف.' });
+    throw new PdfError('network');
+  }
+
+  const probe = await probePdf(savedUri).catch(() => null);
+  if (!probe || !probe.ok) {
+    safeDelete(target);
+    const error = new PdfError(probe ? probe.reason as Exclude<PdfProbeReason, 'ok'> : 'corrupt');
+    publishDownload(item.id, { status: 'error', progress: 0, bytesWritten: 0, totalBytes: 0, error: pdfErrorMessage(error) });
+    throw error;
+  }
 
   let downloadsUri: string;
-  try {
-    downloadsUri = await savePdfToDownloads(saved.uri, item.name);
-  } catch {
-    safeDelete(saved);
-    throw new PdfError('storage');
-  }
+  try { downloadsUri = await savePdfToDownloads(savedUri, item.name); }
+  catch { safeDelete(target); publishDownload(item.id, { status: 'error', progress: 100, bytesWritten: probe.size, totalBytes: probe.size, error: messages.storage }); throw new PdfError('storage'); }
 
   const library = await getLibrary();
   const oldEntry = library[item.id];
   if (oldEntry?.downloadsUri && oldEntry.downloadsUri !== downloadsUri) await deletePdfFromDownloads(oldEntry.downloadsUri).catch(() => false);
   library[item.id] = { file: fileNameFor(item.id), name: item.name, pages: probe.pages, size: probe.size, savedAt: Date.now(), downloadsUri };
   await writeJson(LIBRARY_KEY, library);
-  return { uri: saved.uri, pages: probe.pages };
+  publishDownload(item.id, { status: 'done', progress: 100, bytesWritten: probe.size, totalBytes: probe.size });
+  return { uri: savedUri, pages: probe.pages };
 }
 
 export async function removePdf(id: string) {
@@ -132,5 +176,6 @@ export async function removePdf(id: string) {
     safeDelete(file);
     if (entry.downloadsUri) await deletePdfFromDownloads(entry.downloadsUri).catch(() => false);
   }
+  downloadStates.delete(id);
   await dropEntry(id);
 }
