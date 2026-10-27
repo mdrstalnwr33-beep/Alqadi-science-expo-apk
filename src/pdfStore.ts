@@ -12,7 +12,7 @@ const messages: Record<PdfErrorCode, string> = {
   network: 'تعذر تنزيل الملف. تأكد من اتصال الإنترنت وأن ملف Google Drive متاح لأي شخص لديه الرابط، ثم حاول مرة أخرى.',
   unsupported: 'قارئ PDF غير متاح في هذه النسخة. ثبّت النسخة الأحدث من التطبيق.',
   storage: 'تم تنزيل الملف، لكن تعذر حفظه في مجلد التنزيلات/المقرر الدراسي. تحقق من مساحة التخزين ثم حاول مرة أخرى.',
-  html: 'رابط Google Drive أعاد صفحة ويب بدل ملف PDF. سيحاول التطبيق الآن تحويل رابط Drive تلقائيًا؛ إذا استمر الخطأ اجعل المشاركة: أي شخص لديه الرابط.',
+  html: 'رابط Google Drive أعاد صفحة ويب بدل ملف PDF. سيحاول التطبيق تحويل رابط Drive تلقائيًا؛ إذا استمر الخطأ اجعل المشاركة: أي شخص لديه الرابط.',
   'not-pdf': 'الملف الذي تم تنزيله ليس بصيغة PDF.',
   corrupt: 'ملف PDF تالف أو غير مكتمل. حاول التنزيل مرة أخرى.',
   empty: 'الملف الذي تم تنزيله فارغ.',
@@ -25,8 +25,7 @@ function driveFileId(raw: string): string | null {
   const url = raw.trim();
   const patterns = [
     /https?:\/\/drive\.google\.com\/file\/d\/([\w-]+)/i,
-    /https?:\/\/drive\.google\.com\/(?:open|uc)\?(?:[^#]*&)?id=([\w-]+)/i,
-    /https?:\/\/drive\.google\.com\/drive\/u\/\d+\/folders\/([\w-]+)/i
+    /https?:\/\/drive\.google\.com\/(?:open|uc)\?(?:[^#]*&)?id=([\w-]+)/i
   ];
   for (const pattern of patterns) {
     const match = url.match(pattern);
@@ -66,7 +65,7 @@ async function resolveDriveDownloadUrl(raw: string): Promise<string> {
   const candidates = driveDownloadCandidates(id);
   for (const candidate of candidates) {
     try {
-      const response = await fetch(candidate, { method: 'GET', redirect: 'follow' as RequestRedirect });
+      const response = await fetch(candidate);
       const type = (response.headers.get('content-type') || '').toLowerCase();
       if (type.includes('application/pdf') || type.includes('application/octet-stream')) return candidate;
       if (type.includes('text/html')) {
