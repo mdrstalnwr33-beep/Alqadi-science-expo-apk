@@ -1,6 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import { useEffect, useState } from 'react';
 import { Text } from 'react-native';
 import { getLibrary, getLocalPdf, type PdfLibrary } from '../src/pdfStore';
 import { Action, Card, Page, Section, C } from '../src/ui';
@@ -9,11 +8,11 @@ export default function DownloadedBooksScreen() {
   const p = useLocalSearchParams<{ role?: string; name?: string; grade?: string; code?: string }>();
   const [library, setLibrary] = useState<PdfLibrary>({});
 
-  useFocusEffect(useCallback(() => {
+  useEffect(() => {
     let alive = true;
     getLibrary().then(value => { if (alive) setLibrary(value); });
     return () => { alive = false; };
-  }, []));
+  }, []);
 
   const entries = Object.entries(library).sort((a, b) => (b[1].savedAt || 0) - (a[1].savedAt || 0));
 
