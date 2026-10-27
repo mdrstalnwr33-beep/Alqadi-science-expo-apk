@@ -3,7 +3,7 @@
     "name": "تطبيق القاضي للعلوم",
     "slug": "alqadi-science-app",
     "version": "0.5.2",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {"image":"./assets/icon.png","resizeMode":"contain","backgroundColor":"#1E3A8A"},
