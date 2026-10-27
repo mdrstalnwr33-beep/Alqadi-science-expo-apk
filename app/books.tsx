@@ -1,9 +1,9 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { Alert, Pressable, Text, TextInput, View } from 'react-native';
 import { useEffect, useMemo, useState } from 'react';
-import { books, subjects } from '../src/data';
+import { subjects } from '../src/data';
 import { deleteBookLink, getBookLinks, saveBookLink, updateBookLink, type CloudBookLink } from '../src/contentCloud';
-import { downloadPdf, getLibrary, getLocalPdf, pdfErrorMessage, removePdf, type PdfLibrary } from '../src/pdfStore';
+import { downloadPdf, getLibrary, getLocalPdf, getPdfDownloadState, pdfErrorMessage, removePdf, subscribePdfDownload, type PdfDownloadState, type PdfLibrary } from '../src/pdfStore';
 import { Action, Card, Page, Section, C, styles } from '../src/ui';
 
 const isTelegramMessageUrl = (raw: string) => /^https?:\/\/(?:www\.)?t\.me\/(?:s\/)?[^/]+\/\d+(?:[?#].*)?$/i.test(raw.trim());
@@ -12,11 +12,35 @@ const telegramWebUrl = (raw: string) => {
   return match ? `https://t.me/s/${match[1]}/${match[2]}${match[3] || ''}` : raw.trim();
 };
 
+const formatBytes = (value: number) => {
+  if (!value) return '0 MB';
+  const mb = value / 1024 / 1024;
+  return mb < 1 ? `${Math.round(value / 1024)} KB` : `${mb.toFixed(mb >= 10 ? 0 : 1)} MB`;
+};
+
 function FileCard({ item, cached, busy, teacher, onOpen, onEdit, onDelete, onRemove }: {
   item: CloudBookLink; cached: boolean; busy: boolean; teacher: boolean;
   onOpen: () => void; onEdit: () => void; onDelete: () => void; onRemove: () => void;
 }) {
   const telegram = isTelegramMessageUrl(item.url);
+  const [download, setDownload] = useState<PdfDownloadState | null>(() => getPdfDownloadState(item.id));
+
+  useEffect(() => {
+    if (telegram) return;
+    return subscribePdfDownload(item.id, setDownload);
+  }, [item.id, telegram]);
+
+  const downloading = !telegram && download?.status === 'downloading';
+  const percent = download?.progress ?? 0;
+  const progressWidth = downloading ? (percent > 0 ? `${percent}%` : '3%') : cached ? '100%' : '0%';
+  const downloadText = downloading
+    ? download.totalBytes > 0
+      ? `جاري التنزيل ${percent}% • ${formatBytes(download.bytesWritten)} / ${formatBytes(download.totalBytes)}`
+      : `جاري التنزيل • ${formatBytes(download.bytesWritten)}`
+    : busy
+      ? (telegram ? 'جاري فتح المعاينة…' : 'جاري تجهيز الملف…')
+      : telegram ? '✈️ فتح المعاينة داخل التطبيق' : cached ? '📖 فتح الملف المحفوظ' : '⬇️ تنزيل الملف وفتحه';
+
   return <View style={{ backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: C.border, overflow: 'hidden', marginBottom: 12 }}>
     <View style={{ flexDirection: 'row-reverse', alignItems: 'center', padding: 14, gap: 12 }}>
       <View style={{ width: 58, height: 66, borderRadius: 15, backgroundColor: telegram ? '#e8f4ff' : '#fff0f0', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.border }}>
@@ -25,16 +49,18 @@ function FileCard({ item, cached, busy, teacher, onOpen, onEdit, onDelete, onRem
       </View>
       <View style={{ flex: 1 }}>
         <Text numberOfLines={2} style={{ color: C.navy, fontSize: 16, fontWeight: '900', textAlign: 'right', lineHeight: 23 }}>{item.name}</Text>
-        <Text style={{ color: C.muted, fontSize: 11, textAlign: 'right', marginTop: 4 }}>{telegram ? 'ملف من Telegram • معاينة داخل التطبيق' : cached ? 'محفوظ على الجهاز • يعمل بدون إنترنت' : 'ملف جديد • يحتاج تنزيلًا أول مرة'}</Text>
+        <Text style={{ color: C.muted, fontSize: 11, textAlign: 'right', marginTop: 4 }}>{telegram ? 'ملف من Telegram • معاينة داخل التطبيق' : downloading ? 'التنزيل مستمر حتى عند الرجوع للصفحة السابقة' : cached ? 'محفوظ على الجهاز • يعمل بدون إنترنت' : 'ملف جديد • يحتاج تنزيلًا أول مرة'}</Text>
       </View>
     </View>
 
-    {!telegram && <View style={{ marginHorizontal: 14, height: 7, borderRadius: 5, backgroundColor: '#edf1f5', overflow: 'hidden' }}>
-      <View style={{ width: cached ? '100%' : '8%', height: 7, borderRadius: 5, backgroundColor: cached ? '#16a34a' : C.navy }} />
+    {!telegram && <View style={{ marginHorizontal: 14, height: 10, borderRadius: 6, backgroundColor: '#e9eef4', overflow: 'hidden' }}>
+      <View style={{ width: progressWidth, height: 10, borderRadius: 6, backgroundColor: cached ? '#16a34a' : C.navy }} />
     </View>}
 
-    <Pressable disabled={busy} onPress={onOpen} style={{ margin: 14, marginBottom: teacher ? 8 : 14, minHeight: 52, borderRadius: 15, backgroundColor: C.navy, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ color: '#fff', fontSize: 16, fontWeight: '900' }}>{busy ? (telegram ? 'جاري فتح الملف…' : 'جاري تجهيز الملف…') : telegram ? '✈️ فتح المعاينة داخل التطبيق' : cached ? '📖 فتح الملف المحفوظ' : '⬇️ تنزيل الملف وفتحه'}</Text>
+    {!telegram && downloading && <Text style={{ color: C.navy, fontSize: 11, fontWeight: '900', textAlign: 'center', marginTop: 7 }}>{download.totalBytes > 0 ? `تم تنزيل ${percent}% من الملف` : `تم تنزيل ${formatBytes(download.bytesWritten)}`}</Text>}
+
+    <Pressable disabled={busy || downloading} onPress={onOpen} style={{ margin: 14, marginBottom: teacher ? 8 : 14, minHeight: 52, borderRadius: 15, backgroundColor: C.navy, alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{ color: '#fff', fontSize: 15, fontWeight: '900', textAlign: 'center' }}>{downloadText}</Text>
     </Pressable>
 
     {teacher && <View style={{ flexDirection: 'row-reverse', gap: 8, paddingHorizontal: 14, paddingBottom: 10 }}>
@@ -91,10 +117,15 @@ export default function BooksScreen() {
   const openTelegramMessage = async (item: CloudBookLink) => { setBusy(item.id); try { router.push({ pathname: '/telegram-viewer', params: { url: telegramWebUrl(item.url), title: item.name } }); } catch { Alert.alert('تعذر فتح الملف', 'تعذر فتح معاينة Telegram داخل التطبيق.'); } finally { setBusy(null); } };
   const cacheAndOpen = async (item: CloudBookLink) => {
     if (isTelegramMessageUrl(item.url)) { await openTelegramMessage(item); return; }
-    setBusy(item.id);
-    try { let local = await getLocalPdf(item.id); if (!local) local = await downloadPdf(item); await refreshLibrary(); router.push({ pathname: '/pdf-viewer', params: { uri: local.uri, title: item.name, bookId: item.id } }); }
-    catch (error) { Alert.alert('تعذر فتح الملف', pdfErrorMessage(error)); }
-    finally { setBusy(null); }
+    try {
+      const local = await getLocalPdf(item.id);
+      if (local) { await refreshLibrary(); router.push({ pathname: '/pdf-viewer', params: { uri: local.uri, title: item.name, bookId: item.id } }); return; }
+      await downloadPdf(item);
+      await refreshLibrary();
+      const downloaded = await getLocalPdf(item.id);
+      if (!downloaded) throw new Error('missing-after-download');
+      router.push({ pathname: '/pdf-viewer', params: { uri: downloaded.uri, title: item.name, bookId: item.id } });
+    } catch (error) { Alert.alert('تعذر فتح الملف', pdfErrorMessage(error)); }
   };
 
   const visibleLinks = useMemo(() => {
@@ -102,7 +133,6 @@ export default function BooksScreen() {
     return q ? links.filter(x => x.name.toLowerCase().includes(q)) : links;
   }, [links, search]);
   const cachedCount = links.filter(x => !!library[x.id] && !isTelegramMessageUrl(x.url)).length;
-  const list = books.filter(b => (!subject || b.subject === subject) && (!grade || b.grade === grade));
 
   return <Page title={subject || 'مكتبة الملفات'} subtitle={grade ? `${grade} • ${subject || 'العلوم'}` : 'اختر المادة الدراسية'} onBack={() => router.back()}>
     {!subject && <Section title="اختر المادة"><View style={{ gap: 8 }}>{subjects.map(s => <Pressable key={s.name} onPress={() => router.push({ pathname: '/books', params: { ...p, subject: s.name } })} style={[styles.card, { borderColor: C.border }]}><Text style={{ textAlign: 'right', fontWeight: '900', fontSize: 16, color: C.navy }}>{s.icon}  {s.name}</Text></Pressable>)}</View></Section>}
@@ -118,14 +148,12 @@ export default function BooksScreen() {
         </View>
       </View>
       {links.length > 2 && <TextInput value={search} onChangeText={setSearch} placeholder="🔎 ابحث عن كتاب أو ملزمة..." textAlign="right" style={{ borderWidth: 1, borderColor: C.border, borderRadius: 14, padding: 12, marginBottom: 12, backgroundColor: '#fff' }} />}
-      {teacher && <Card><Text style={{ fontSize: 17, fontWeight: '900', color: C.navy, textAlign: 'right' }}>{editingId ? '✏️ تعديل الملف' : '➕ إضافة ملف جديد'}</Text><Text style={{ fontSize: 11, color: C.muted, textAlign: 'right', marginTop: 5 }}>الطلاب يرون اسم الملف فقط. الرابط مخفي عنهم وتتم عملية الفتح والتنزيل من داخل التطبيق.</Text><TextInput value={name} onChangeText={setName} placeholder="اسم الكتاب أو الملزمة" textAlign="right" style={{ borderWidth: 1, borderColor: C.border, borderRadius: 11, padding: 11, marginTop: 10, backgroundColor: '#fff' }} /><TextInput value={url} onChangeText={setUrl} autoCapitalize="none" keyboardType="url" placeholder="رابط PDF أو Google Drive أو Telegram" textAlign="right" style={{ borderWidth: 1, borderColor: C.border, borderRadius: 11, padding: 11, marginTop: 8, backgroundColor: '#fff' }} /><Action label={editingId ? 'حفظ التعديل' : 'نشر في المكتبة'} icon={editingId ? '💾' : '📚'} onPress={editingId ? saveEdit : addLink} />{editingId && <Action label="إلغاء التعديل" icon="↩️" onPress={resetForm} />}</Card>}
+      {teacher && <Card><Text style={{ fontSize: 17, fontWeight: '900', color: C.navy, textAlign: 'right' }}>{editingId ? '✏️ تعديل الملف' : '➕ إضافة ملف جديد'}</Text><Text style={{ fontSize: 11, color: C.muted, textAlign: 'right', marginTop: 5 }}>الطلاب يرون اسم الملف فقط. الرابط مخفي عنهم وتتم عملية الفتح والتنزيل من داخل التطبيق.</Text><TextInput value={name} onChangeText={setName} placeholder="اسم الكتاب أو الملزمة" textAlign="right" style={{ borderWidth: 1, borderColor: C.border, borderRadius: 11, padding: 11, marginTop: 10, backgroundColor: '#fff' }} /><TextInput value={url} onChangeText={setUrl} autoCapitalize="none" keyboardType="url" placeholder="رابط PDF أو MediaFire أو Telegram" textAlign="right" style={{ borderWidth: 1, borderColor: C.border, borderRadius: 11, padding: 11, marginTop: 8, backgroundColor: '#fff' }} /><Action label={editingId ? 'حفظ التعديل' : 'نشر في المكتبة'} icon={editingId ? '💾' : '📚'} onPress={editingId ? saveEdit : addLink} />{editingId && <Action label="إلغاء التعديل" icon="↩️" onPress={resetForm} />}</Card>}
     </Section>}
 
     {subject && <Section title={teacher ? 'إدارة ملفات المقرر' : 'ملفات المقرر'}>
       {visibleLinks.map(item => <FileCard key={item.id} item={item} cached={!!library[item.id]} busy={busy === item.id} teacher={teacher} onOpen={() => cacheAndOpen(item)} onEdit={() => startEdit(item)} onDelete={() => removeLink(item)} onRemove={() => clearCachedFile(item)} />)}
       {!visibleLinks.length && <Card><Text style={{ textAlign: 'center', color: C.muted }}>{search ? 'لا توجد ملفات مطابقة للبحث.' : 'لا توجد ملفات منشورة لهذا الصف والمادة.'}</Text></Card>}
     </Section>}
-
-    {subject && <Section title="المحتوى المدمج">{list.length ? list.map(b => <Card key={b.id}><Text style={{ fontSize: 17, fontWeight: '900', color: C.navy, textAlign: 'right' }}>{b.title}</Text><Text style={{ color: C.muted, textAlign: 'right', marginTop: 5 }}>{b.description}</Text><Action label="قراءة المحتوى" icon="📖" onPress={() => router.push({ pathname: '/book', params: { id: b.id, grade: b.grade, subject: b.subject } })} /></Card>) : <Card><Text style={{ textAlign: 'center', color: C.muted }}>لا يوجد محتوى مدمج لهذا الصف والمادة.</Text></Card>}</Section>}
   </Page>;
 }
