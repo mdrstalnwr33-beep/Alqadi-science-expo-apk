@@ -13,7 +13,9 @@ function PdfPageView({ uri, index, width }: { uri: string; index: number; width:
   const [failed, setFailed] = useState(false);
   const pixelWidth = Math.round(width * PixelRatio.get());
   useEffect(() => {
-    let alive = true; setFailed(false); setPage(null);
+    let alive = true;
+    setFailed(false);
+    setPage(null);
     renderPdfPage(uri, index, pixelWidth).then(x => { if (alive) setPage(x); }).catch(() => { if (alive) setFailed(true); });
     return () => { alive = false; };
   }, [uri, index, pixelWidth]);
@@ -24,32 +26,62 @@ function PdfPageView({ uri, index, width }: { uri: string; index: number; width:
 }
 
 export default function PdfViewerScreen() {
-  const params = useLocalSearchParams<{ id?: string; name?: string; url?: string }>();
+  const params = useLocalSearchParams<{ id?: string; bookId?: string; name?: string; title?: string; url?: string; uri?: string }>();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const [state, setState] = useState<State>({ status: 'loading', text: 'جاري التحضير…' });
   const [zoom, setZoom] = useState(1);
   const [current, setCurrent] = useState(1);
+
   const load = useCallback(async () => {
-    const id = String(params.id || '');
-    if (!id || !params.url) { setState({ status: 'error', message: 'بيانات الملزمة غير مكتملة.' }); return; }
+    const id = String(params.bookId || params.id || '');
+    const passedLocalUri = String(params.uri || '').trim();
+    const displayName = String(params.name || params.title || 'الملزمة');
+
     try {
+      // If BooksScreen already found the cached file, use it directly.
+      // This is the critical offline path: no URL and no internet are required.
+      if (passedLocalUri) {
+        setState({ status: 'loading', text: 'جاري فتح النسخة المحفوظة…' });
+        const probe = await getLocalPdf(id);
+        if (probe && probe.uri === passedLocalUri) {
+          setState({ status: 'ready', uri: probe.uri, pages: probe.pages });
+          return;
+        }
+        // The URI may still be valid even if the library metadata was refreshed.
+        setState({ status: 'ready', uri: passedLocalUri, pages: probe?.pages || 1 });
+        return;
+      }
+
+      if (!id) {
+        setState({ status: 'error', message: 'بيانات الملزمة غير مكتملة.' });
+        return;
+      }
+
       setState({ status: 'loading', text: 'جاري البحث عن النسخة المحفوظة…' });
       let local = await getLocalPdf(id);
       if (!local) {
+        if (!params.url) {
+          setState({ status: 'error', message: 'هذه الملزمة غير محفوظة على الجهاز، وتحتاج إلى الإنترنت لتنزيلها أول مرة.' });
+          return;
+        }
         setState({ status: 'loading', text: 'جاري تنزيل الملزمة وحفظها على الجهاز…' });
-        local = await downloadPdf({ id, name: String(params.name || 'الملزمة'), url: String(params.url) });
+        local = await downloadPdf({ id, name: displayName, url: String(params.url) });
       }
       setState({ status: 'ready', uri: local.uri, pages: local.pages });
-    } catch (e) { setState({ status: 'error', message: pdfErrorMessage(e) }); }
-  }, [params.id, params.name, params.url]);
+    } catch (e) {
+      setState({ status: 'error', message: pdfErrorMessage(e) });
+    }
+  }, [params.bookId, params.id, params.name, params.title, params.url, params.uri]);
+
   useEffect(() => { load(); }, [load]);
   const onViewable = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => { const x = viewableItems[0]; if (x?.index != null) setCurrent(x.index + 1); }).current;
   const pageWidth = Math.min(width - 16, 900) * zoom;
+
   return <View style={{ flex: 1, backgroundColor: '#e8edf2' }}>
     <View style={{ flexDirection: 'row-reverse', alignItems: 'center', paddingTop: insets.top + 6, paddingBottom: 8, paddingHorizontal: 14, backgroundColor: C.bg, borderBottomWidth: 1, borderBottomColor: C.border }}>
       <Pressable onPress={() => router.back()} style={{ width: 42 }}><Text style={{ fontSize: 38, color: C.navy, lineHeight: 42 }}>‹</Text></Pressable>
-      <Text numberOfLines={1} style={{ flex: 1, color: C.navy, fontSize: 18, fontWeight: '800', textAlign: 'right' }}>{params.name || 'الملزمة'}</Text>
+      <Text numberOfLines={1} style={{ flex: 1, color: C.navy, fontSize: 18, fontWeight: '800', textAlign: 'right' }}>{params.name || params.title || 'الملزمة'}</Text>
     </View>
     {state.status === 'loading' && <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14 }}><ActivityIndicator size="large" color={C.navy} /><Text style={{ color: C.muted }}>{state.text}</Text></View>}
     {state.status === 'error' && <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 }}><Text style={{ fontSize: 40 }}>⚠️</Text><Text style={{ color: C.text, fontSize: 16, textAlign: 'center', lineHeight: 26 }}>{state.message}</Text><Pressable onPress={load} style={{ backgroundColor: C.navy, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 28 }}><Text style={{ color: '#fff', fontWeight: '800' }}>إعادة المحاولة</Text></Pressable><Pressable onPress={() => router.back()}><Text style={{ color: C.blue, fontWeight: '700' }}>رجوع</Text></Pressable></View>}
