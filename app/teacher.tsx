@@ -1,50 +1,18 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { clearSession } from '../src/storage';
 import { grades, type Grade } from '../src/data';
 
-export default function TeacherScreen() {
-  const p = useLocalSearchParams<{ name?: string; code?: string }>();
-  const selectGrade = (grade: Grade) => router.replace({
-    pathname: '/home',
-    params: { role: 'teacher', name: p.name || 'الأستاذ محمد القاضي الوصابي', code: p.code || '', grade, stage: grade },
-  });
-
-  return (
-    <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.container}>
-        <Pressable onPress={() => router.replace('/')}><Text style={styles.back}>رجوع ›</Text></Pressable>
-        <Text style={styles.eyebrow}>تطبيق القاضي للعلوم</Text>
-        <Text style={styles.title}>مرحبًا بك في لوحة المعلم 🎓</Text>
-        <Text style={styles.subtitle}>اختر الصف الدراسي للانتقال إلى لوحة إدارته.</Text>
-        <View style={styles.panel}>
-          <Text style={styles.sectionTitle}>اختر الصف الدراسي</Text>
-          {grades.map((grade, index) => (
-            <Pressable key={grade} style={styles.gradeCard} onPress={() => selectGrade(grade)}>
-              <View style={styles.copy}>
-                <Text style={styles.gradeTitle}>{grade}</Text>
-                <Text style={styles.description}>الكيمياء • الفيزياء • الأحياء</Text>
-              </View>
-              <Text style={styles.icon}>{['1️⃣', '2️⃣', '3️⃣'][index]}</Text>
-            </Pressable>
-          ))}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
+export default function TeacherScreen(){
+ const p=useLocalSearchParams<{name?:string;code?:string}>();
+ const name=p.name||'الأستاذ محمد القاضي الوصابي';
+ const selectGrade=(grade:Grade)=>router.push({pathname:'/teacher-grade',params:{grade,name,code:p.code||''}});
+ const logout=async()=>{await clearSession();router.replace('/')};
+ return <SafeAreaView style={styles.safe}><ScrollView contentContainerStyle={styles.container}>
+  <View style={styles.top}><Pressable style={styles.logout} onPress={logout}><Text style={styles.logoutText}>🚪 تسجيل الخروج</Text></Pressable><Text style={styles.badge}>👨‍🏫 لوحة المعلم</Text></View>
+  <Text style={styles.eyebrow}>تطبيق القاضي للعلوم</Text><Text style={styles.title}>{name}</Text><Text style={styles.subtitle}>اختر الصف الدراسي لإدارة طلابه ومواده.</Text>
+  <View style={styles.settings}><Pressable style={styles.setting} onPress={()=>router.push({pathname:'/about-teacher',params:{role:'teacher'}})}><Text style={styles.settingIcon}>✎</Text><Text style={styles.settingText}>تعديل السيرة الذاتية</Text></Pressable><Pressable style={styles.setting} onPress={()=>router.push('/teacher-settings')}><Text style={styles.settingIcon}>🔐</Text><Text style={styles.settingText}>تعديل كود المعلم</Text></Pressable></View>
+  <View style={styles.panel}><Text style={styles.sectionTitle}>اختر الصف الدراسي</Text>{grades.map((grade,index)=><Pressable key={grade} style={styles.gradeCard} onPress={()=>selectGrade(grade)}><View style={styles.copy}><Text style={styles.gradeTitle}>{grade}</Text><Text style={styles.description}>الطلاب والأكواد • الكيمياء • الفيزياء • الأحياء</Text></View><Text style={styles.icon}>{['1️⃣','2️⃣','3️⃣'][index]}</Text></Pressable>)}</View>
+ </ScrollView></SafeAreaView>
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#f4f7fb' },
-  container: { flexGrow: 1, padding: 20, paddingTop: 36, justifyContent: 'center' },
-  back: { color: '#356ae6', fontWeight: '800', marginBottom: 25, textAlign: 'right' },
-  eyebrow: { color: '#356ae6', fontWeight: '900', fontSize: 14, textAlign: 'center', marginBottom: 10 },
-  title: { fontSize: 27, fontWeight: '900', color: '#14213d', textAlign: 'center', marginBottom: 8 },
-  subtitle: { fontSize: 14, lineHeight: 23, color: '#667085', textAlign: 'center', marginBottom: 24 },
-  panel: { backgroundColor: '#eaf2ff', borderRadius: 22, padding: 16, borderWidth: 1, borderColor: '#c7d7fe' },
-  sectionTitle: { fontSize: 19, fontWeight: '900', color: '#14213d', textAlign: 'right', marginBottom: 12 },
-  gradeCard: { backgroundColor: '#fff', borderRadius: 16, padding: 17, marginBottom: 10, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#e4e7ec' },
-  copy: { flex: 1 },
-  gradeTitle: { fontSize: 18, fontWeight: '900', color: '#14213d', textAlign: 'right' },
-  description: { fontSize: 12, color: '#667085', textAlign: 'right', marginTop: 5 },
-  icon: { fontSize: 28, marginLeft: 12 },
-});
+const styles=StyleSheet.create({safe:{flex:1,backgroundColor:'#f4f7fb'},container:{flexGrow:1,padding:20,paddingTop:20},top:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginBottom:20},logout:{backgroundColor:'#fff0f0',borderRadius:12,paddingHorizontal:12,paddingVertical:9},logoutText:{color:'#b42318',fontWeight:'900',fontSize:12},badge:{color:'#17324d',fontWeight:'900',fontSize:13},eyebrow:{color:'#356ae6',fontWeight:'900',fontSize:14,textAlign:'right'},title:{fontSize:27,fontWeight:'900',color:'#14213d',textAlign:'right',marginTop:7},subtitle:{fontSize:14,lineHeight:23,color:'#667085',textAlign:'right',marginTop:7,marginBottom:18},settings:{flexDirection:'row-reverse',justifyContent:'space-between',marginBottom:18},setting:{width:'48.5%',backgroundColor:'#fff',borderRadius:15,padding:14,alignItems:'center',borderWidth:1,borderColor:'#eaecf0'},settingIcon:{fontSize:24},settingText:{fontSize:12,fontWeight:'900',color:'#17324d',marginTop:6,textAlign:'center'},panel:{backgroundColor:'#eaf2ff',borderRadius:22,padding:16,borderWidth:1,borderColor:'#c7d7fe'},sectionTitle:{fontSize:19,fontWeight:'900',color:'#14213d',textAlign:'right',marginBottom:12},gradeCard:{backgroundColor:'#fff',borderRadius:16,padding:17,marginBottom:10,flexDirection:'row-reverse',alignItems:'center',justifyContent:'space-between',borderWidth:1,borderColor:'#e4e7ec'},copy:{flex:1},gradeTitle:{fontSize:18,fontWeight:'900',color:'#14213d',textAlign:'right'},description:{fontSize:11,color:'#667085',textAlign:'right',marginTop:5},icon:{fontSize:28,marginLeft:12}});
