@@ -1,0 +1,17 @@
+import { router, useLocalSearchParams } from 'expo-router';
+import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { subjects } from '../src/data';
+
+const tools=[['👥','الطلاب والأكواد','إدارة طلاب الصف وأكوادهم','students'],['📚','المواد الدراسية','الكيمياء والفيزياء والأحياء','subjects']];
+export default function TeacherGrade(){
+ const p=useLocalSearchParams<{grade?:string;name?:string;code?:string}>(); const grade=p.grade||'الأول الثانوي';
+ const openSubject=(subject:string)=>router.push({pathname:'/teacher-subject',params:{grade,subject,name:p.name||'',code:p.code||'',role:'teacher'}});
+ return <SafeAreaView style={styles.safe}><ScrollView contentContainerStyle={styles.content}>
+   <View style={styles.top}><Pressable style={styles.logout} onPress={()=>router.replace('/')}><Text style={styles.logoutText}>🚪 تسجيل الخروج</Text></Pressable><Pressable onPress={()=>router.back()}><Text style={styles.back}>‹</Text></Pressable></View>
+   <Text style={styles.eyebrow}>لوحة المعلم</Text><Text style={styles.title}>{grade}</Text><Text style={styles.subtitle}>إدارة هذا الصف وجميع مواده من مكان واحد.</Text>
+   <View style={styles.grid}>{tools.map(([i,t,d,key])=><Pressable key={key} style={styles.card} onPress={()=>key==='students'?router.push({pathname:'/profile',params:{view:'students',stage:grade,role:'teacher'} }):undefined}><Text style={styles.cardIcon}>{i}</Text><Text style={styles.cardTitle}>{t}</Text><Text style={styles.cardText}>{d}</Text></Pressable>)}</View>
+   <Text style={styles.heading}>المواد الدراسية</Text>
+   {subjects.map(s=><Pressable key={s.name} style={styles.subject} onPress={()=>openSubject(s.name)}><Text style={styles.subjectIcon}>{s.icon}</Text><View style={{flex:1}}><Text style={styles.subjectTitle}>{s.name}</Text><Text style={styles.subjectText}>{s.description}</Text></View><Text style={styles.arrow}>‹</Text></Pressable>)}
+ </ScrollView></SafeAreaView>
+}
+const styles=StyleSheet.create({safe:{flex:1,backgroundColor:'#f5f7fb'},content:{padding:18,paddingBottom:40},top:{flexDirection:'row',justifyContent:'space-between',alignItems:'center'},logout:{backgroundColor:'#fff0f0',borderRadius:12,paddingHorizontal:12,paddingVertical:9,borderWidth:1,borderColor:'#ffd5d5'},logoutText:{color:'#b42318',fontWeight:'900',fontSize:12},back:{fontSize:30,color:'#17324d',fontWeight:'900'},eyebrow:{color:'#356ae6',fontWeight:'900',fontSize:14,textAlign:'right',marginTop:15},title:{fontSize:29,fontWeight:'900',color:'#14213d',textAlign:'right',marginTop:4},subtitle:{fontSize:13,color:'#667085',textAlign:'right',marginTop:6,lineHeight:21},grid:{flexDirection:'row-reverse',justifyContent:'space-between',marginTop:16},card:{width:'48.5%',backgroundColor:'#fff',borderRadius:17,padding:15,minHeight:115,borderWidth:1,borderColor:'#eaecf0'},cardIcon:{fontSize:27,textAlign:'right'},cardTitle:{fontSize:14,fontWeight:'900',color:'#1d2939',textAlign:'right',marginTop:7},cardText:{fontSize:10,color:'#667085',textAlign:'right',lineHeight:16,marginTop:4},heading:{fontSize:20,fontWeight:'900',color:'#14213d',textAlign:'right',marginTop:22,marginBottom:10},subject:{backgroundColor:'#fff',borderRadius:17,padding:16,flexDirection:'row-reverse',alignItems:'center',marginBottom:10,borderWidth:1,borderColor:'#eaecf0'},subjectIcon:{fontSize:35,marginLeft:13},subjectTitle:{fontSize:17,fontWeight:'900',color:'#14213d',textAlign:'right'},subjectText:{fontSize:11,color:'#667085',textAlign:'right',marginTop:4},arrow:{fontSize:27,color:'#356ae6',marginLeft:8}});
