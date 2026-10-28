@@ -11,6 +11,14 @@ export type CustomExam = {
   createdAt: number;
 };
 
+export type HomeworkQuestion = {
+  id: string;
+  type: 'mcq' | 'tf' | 'text';
+  question: string;
+  options?: string[];
+  answer?: string;
+};
+
 export type CustomHomework = {
   id: string;
   title: string;
@@ -18,7 +26,7 @@ export type CustomHomework = {
   grade: Grade;
   due: string;
   note: string;
-  questions: string[];
+  questions: HomeworkQuestion[];
   createdAt: number;
 };
 
