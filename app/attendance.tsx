@@ -9,7 +9,7 @@ export default function Attendance(){
  const p=useLocalSearchParams<{subject?:string;grade?:string}>(); const subject=p.subject||''; const grade=p.grade||'الأول الثانوي';
  const [students,setStudents]=useState<any[]>([]); const [status,setStatus]=useState<Record<string,string>>({});
  const key=`attendance:${grade}:${subject}:${new Date().toISOString().slice(0,10)}`;
- useEffect(()=>{(async()=>{const saved=await readJson<Record<string,string>>(key,{});setStatus(saved);try{const snap=await getDocs(query(collection(db,'students'),where('grade','==',grade)));setStudents(snap.docs.map(d=>({code:d.id,...d.data()})));}catch{setStudents([])}})()},[grade,subject]);
+ useEffect(()=>{(async()=>{const saved=await readJson<Record<string,string>>(key,{});setStatus(saved);try{const snap=await getDocs(query(collection(db,'students'),where('grade','==',grade)));const active=snap.docs.map(d=>({code:d.id,...d.data()})).filter((s:any)=>s.active!==false);setStudents(active);}catch{setStudents([])}})()},[grade,subject]);
  const counts=useMemo(()=>({present:Object.values(status).filter(x=>x==='حاضر').length,absent:Object.values(status).filter(x=>x==='غائب').length,active:Object.values(status).filter(x=>x==='متفاعل').length}),[status]);
  const set=(code:string,value:string)=>setStatus(x=>({...x,[code]:value}));
  const save=async()=>{await writeJson(key,status);Alert.alert('تم الحفظ','تم حفظ حضور وتفاعل الطلاب لهذا اليوم على الجهاز.');};
