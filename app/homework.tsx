@@ -11,7 +11,13 @@ import { Action, Card, Page, Section, C } from '../src/ui';
 
 const normalizeQuestions = (questions: any[]): HomeworkQuestion[] => questions.map((q, i) => {
  if (typeof q === 'string') return { id:`legacy-${i}`, type:'text', question:q };
- return { id:String(q.id||`hq-${i}`), type:q.type==='tf'||q.type==='mcq'?' '+q.type as any:q.type||'text', question:String(q.question||''), options:Array.isArray(q.options)?q.options.map(String):undefined, answer:q.answer?String(q.answer):undefined } as HomeworkQuestion;
+ return {
+  id:String(q.id||`hq-${i}`),
+  type:q.type==='tf'||q.type==='mcq' ? q.type : 'text',
+  question:String(q.question||''),
+  options:Array.isArray(q.options)?q.options.map(String):undefined,
+  answer:q.answer?String(q.answer):undefined,
+ };
 });
 
 export default function HomeworkScreen(){
