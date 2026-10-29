@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { grades } from '../src/data';
 import { linkStudentFingerprint } from '../src/studentBiometric';
-import { getCloudStudent, getCloudTeacherCode } from '../src/cloud';
+import { claimStudentDevice, getCloudStudent, getCloudTeacherCode } from '../src/cloud';
+import { getDeviceId } from '../src/device';
 import { readJson, removeKey, setSession, storageKeys, type LocalStudent, writeJson } from '../src/storage';
 
 const INITIAL_TEACHER_CODE = '900001';
@@ -35,6 +36,7 @@ export default function LoginScreen(){
    }
    let student:LocalStudent|null=null;try{student=await getCloudStudent(code)}catch{student=students.find(s=>s.code===code)||null;if(!student)return Alert.alert('تعذر الاتصال','تعذر الاتصال بالسحابة ولا يوجد هذا الطالب محفوظًا على هذا الجهاز.')}
    if(!student)student=students.find(s=>s.code===code)||null;if(!student)return Alert.alert('الكود غير موجود','هذا الكود لم ينشئه المعلم.');if(!student.active)return Alert.alert('الحساب موقوف','تم إيقاف هذا الطالب من قبل المعلم.');
+   try{const claim=await claimStudentDevice(student.code,await getDeviceId());if(claim==='occupied')return Alert.alert('الحساب مستخدم على جهاز آخر','هذا الحساب مفتوح حاليًا على جهاز آخر. سجّل الخروج من الجهاز الآخر ثم حاول مرة أخرى.');if(claim==='inactive')return Alert.alert('الحساب موقوف','تم إيقاف هذا الطالب من قبل المعلم.');if(claim==='missing')return Alert.alert('الكود غير موجود','لم يعد هذا الطالب مسجلًا في السحابة.');}catch{Alert.alert('تنبيه','تعذر تسجيل حضور الطالب الآن، لكن سيتم السماح بالدخول.');}
    await setSession({role:'student',name:student.name,grade:student.grade,code:student.code,active:true});router.dismissAll();router.replace({pathname:'/welcome'});const linked=await readJson<string>(storageKeys.studentBiometricCode,'');if(linked!==student.code){Alert.alert('🔐 تفعيل الدخول بالبصمة؟','هل تريد استخدام بصمة الإصبع للدخول إلى حسابك في المرات القادمة؟',[{text:'ليس الآن',style:'cancel'},{text:'تفعيل البصمة',onPress:async()=>{try{const result=await linkStudentFingerprint(student!.code);if(result.ok)Alert.alert('تم التفعيل','يمكنك الآن الدخول بالبصمة على هذا الجهاز.');else if(result.reason==='unsupported')Alert.alert('البصمة غير متاحة','سجّل بصمة الإصبع في إعدادات الجهاز أولًا.')}catch{Alert.alert('تعذر التفعيل','حاول مرة أخرى من الملف الشخصي.')}}}]);}
   }finally{setBusy(false)}
  };
