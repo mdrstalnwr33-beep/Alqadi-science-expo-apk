@@ -74,7 +74,6 @@ export default function BooksScreen() {
         setLinks(cloudLinks);
         return;
       }
-      // Offline fallback: Firebase is unavailable, so show locally saved PDFs from the device library.
       const local = await getLibrary();
       const fallback: CloudBookLink[] = Object.entries(local).map(([id, entry]) => ({
         id,
@@ -123,7 +122,7 @@ export default function BooksScreen() {
       await refreshLibrary();
       const downloaded = await getLocalPdf(item.id);
       if (!downloaded) throw new Error('missing-after-download');
-      router.push({ pathname: '/pdf-viewer', params: { uri: downloaded.uri, title: item.name, bookId: item.id } });
+      router.push({ pathname: '/pdf-viewer', params: { uri: downloaded.uri, title: item.name, bookId: item.id });
     } catch (error) { Alert.alert('تعذر فتح الملف', error instanceof Error && error.message === 'offline-file-missing' ? 'النسخة المحلية غير موجودة على الجهاز. اتصل بالإنترنت لتنزيل الملف أول مرة.' : pdfErrorMessage(error)); }
   };
 
@@ -134,6 +133,7 @@ export default function BooksScreen() {
     {!subject && <Section title="اختر المادة"><View style={{ gap: 8 }}>{subjects.map(s => <Pressable key={s.name} onPress={() => router.push({ pathname: '/books', params: { ...p, subject: s.name } })} style={[styles.card, { borderColor: C.border }]}><Text style={{ textAlign: 'right', fontWeight: '900', fontSize: 16, color: C.navy }}>{s.icon}  {s.name}</Text></Pressable>)}</View></Section>}
     {subject && <Section title="مكتبة المقرر">
       <View style={{ backgroundColor: C.navy, borderRadius: 22, padding: 17, marginBottom: 12 }}><Text style={{ color: '#fff', fontSize: 20, fontWeight: '900', textAlign: 'right' }}>📚 ملفات {subject}</Text><Text style={{ color: '#dbeafe', fontSize: 12, textAlign: 'right', marginTop: 5 }}>بعد تنزيل PDF مرة واحدة يمكنك فتحه لاحقًا بدون إنترنت.</Text><View style={{ flexDirection: 'row-reverse', gap: 8, marginTop: 14 }}><View style={{ flex: 1, backgroundColor: '#ffffff18', borderRadius: 13, padding: 10 }}><Text style={{ color: '#fff', textAlign: 'center', fontSize: 18, fontWeight: '900' }}>{links.length}</Text><Text style={{ color: '#dbeafe', textAlign: 'center', fontSize: 10 }}>ملف</Text></View><View style={{ flex: 1, backgroundColor: '#ffffff18', borderRadius: 13, padding: 10 }}><Text style={{ color: '#fff', textAlign: 'center', fontSize: 18, fontWeight: '900' }}>{cachedCount}</Text><Text style={{ color: '#dbeafe', textAlign: 'center', fontSize: 10 }}>محفوظ</Text></View><View style={{ flex: 1, backgroundColor: '#ffffff18', borderRadius: 13, padding: 10 }}><Text style={{ color: '#fff', textAlign: 'center', fontSize: 18, fontWeight: '900' }}>{links.length - cachedCount}</Text><Text style={{ color: '#dbeafe', textAlign: 'center', fontSize: 10 }}>جديد</Text></View></View></View>
+      {!teacher && grade==='الأول الثانوي' && subject==='الكيمياء' && <Pressable onPress={()=>router.push({ pathname:'/flashcards', params:{...p, grade, subject} })} style={{ backgroundColor:'#4F46E5', borderRadius:22, padding:18, marginBottom:14, borderWidth:2, borderColor:'#818CF8', elevation:5 }}><Text style={{ color:'#fff', fontSize:22, fontWeight:'900', textAlign:'right' }}>🎴 بطاقات الكيمياء 3D</Text><Text style={{ color:'#E0E7FF', fontSize:12, fontWeight:'800', textAlign:'right', marginTop:5 }}>اقلب البطاقة واختبر نفسك في مفاهيم الملزمة 🧪✨</Text><View style={{ marginTop:12, backgroundColor:'#FFFFFF22', borderRadius:14, padding:10 }}><Text style={{ color:'#fff', fontSize:11, fontWeight:'900', textAlign:'center' }}>اضغط هنا لبدء المراجعة التفاعلية ←</Text></View></Pressable>}
       {links.length > 2 && <TextInput value={search} onChangeText={setSearch} placeholder="🔎 ابحث عن كتاب أو ملزمة..." textAlign="right" style={{ borderWidth: 1, borderColor: C.border, borderRadius: 14, padding: 12, marginBottom: 12, backgroundColor: '#fff' }} />}
       {teacher && <Card><Text style={{ fontSize: 17, fontWeight: '900', color: C.navy, textAlign: 'right' }}>{editingId ? '✏️ تعديل الملف' : '➕ إضافة ملف جديد'}</Text><Text style={{ fontSize: 11, color: C.muted, textAlign: 'right', marginTop: 5 }}>الطلاب يرون اسم الملف فقط. الرابط مخفي عنهم وتتم عملية الفتح والتنزيل من داخل التطبيق.</Text><TextInput value={name} onChangeText={setName} placeholder="اسم الكتاب أو الملزمة" textAlign="right" style={{ borderWidth: 1, borderColor: C.border, borderRadius: 11, padding: 11, marginTop: 10, backgroundColor: '#fff' }} /><TextInput value={url} onChangeText={setUrl} autoCapitalize="none" keyboardType="url" placeholder="رابط PDF أو MediaFire أو Telegram" textAlign="right" style={{ borderWidth: 1, borderColor: C.border, borderRadius: 11, padding: 11, marginTop: 8, backgroundColor: '#fff' }} /><Action label={editingId ? 'حفظ التعديل' : 'نشر في المكتبة'} icon={editingId ? '💾' : '📚'} onPress={editingId ? saveEdit : addLink} />{editingId && <Action label="إلغاء التعديل" icon="↩️" onPress={resetForm} />}</Card>}
     </Section>}
