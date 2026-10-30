@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, deleteDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, runTransaction, serverTimestamp, collection, getDocs } from 'firebase/firestore';
 import { db } from './firebase';
 import type { LocalStudent } from './storage';
 
@@ -22,6 +22,15 @@ export async function getCloudStudent(code:string): Promise<LocalStudent|null> {
   if(data.active!==false&&typeof data.activeDeviceId==='string'&&data.activeDeviceId){try{await setDoc(ref,{lastSeenAt:Date.now(),updatedAt:Date.now()},{merge:true})}catch{}}
   return { id:String(data.id || code), name:String(data.name || 'الطالب'), code, grade:String(data.grade || ''), active:data.active !== false };
 }
+
+export async function getCloudStudents(grade?: string): Promise<LocalStudent[]> {
+  const snap = await getDocs(collection(db, 'students'));
+  return snap.docs.map(item => {
+    const data = item.data();
+    return { id:String(data.id || item.id), name:String(data.name || 'الطالب'), code:String(data.code || item.id), grade:String(data.grade || ''), active:data.active !== false };
+  }).filter(student => /^\d{6}$/.test(student.code) && (!grade || student.grade === grade));
+}
+
 export async function saveCloudStudent(student:LocalStudent) {
   if (!cleanCode(student.code)) throw new Error('Student code must contain exactly six digits');
   await setDoc(doc(db, 'students', student.code), { ...student, updatedAt: Date.now() }, { merge:true });
@@ -69,7 +78,6 @@ export async function saveCloudTeacherProfile(profile:{name:string;school:string
 }
 export async function getCloudTeacherProfile(){const snap=await getDoc(doc(db,'publicContent','teacherProfile'));return snap.exists()?snap.data():null}
 
-// الصور تُحفظ كصورة JPEG صغيرة داخل Firestore، لذلك لا نعتمد على Firebase Storage ولا على الفوترة.
 export async function uploadTeacherPhoto(uri:string){
   const response=await fetch(uri);
   const blob=await response.blob();
