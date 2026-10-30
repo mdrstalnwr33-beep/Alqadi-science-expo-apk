@@ -47,4 +47,7 @@ export const curriculumLessons: CurriculumLesson[] = packs.flatMap(pack => pack.
   };
 }));
 
+export const getCurriculumLessons = (grade: CurriculumLesson['grade'], subject: CurriculumLesson['subject']) =>
+  curriculumLessons.filter(lesson => lesson.grade === grade && lesson.subject === subject);
+
 export const curriculumWeeks = 12;
