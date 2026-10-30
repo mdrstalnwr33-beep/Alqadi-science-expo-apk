@@ -5,7 +5,8 @@ export type CloudLesson={id:string;title:string;body:string;summary?:string;subj
 export type CloudBookLink={id:string;name:string;url:string;grade:string;subject:string;createdAt:number};
 export type CloudNotice={id:string;studentCode?:string;grade?:string;title:string;body:string;createdAt:number;read?:boolean};
 
-const byScope=(name:string,grade:string,subject:string)=>query(collection(db,name),where('grade','==',grade),where('subject','==',subject));
+const normalizeScope=(value:string='')=>value.trim().replace(/\s+/g,' ');
+const byScope=(name:string,grade:string,subject:string)=>query(collection(db,name),where('grade','==',normalizeScope(grade)),where('subject','==',normalizeScope(subject)));
 const newest=<T extends {createdAt:number}>(items:T[])=>items.sort((a,b)=>b.createdAt-a.createdAt);
 export async function publishLesson(item:CloudLesson){await setDoc(doc(db,'lessons',item.id),item);return item;}
 export async function updateLesson(item:CloudLesson){await setDoc(doc(db,'lessons',item.id),item,{merge:true});return item;}
@@ -19,9 +20,12 @@ export async function saveBookLink(item:CloudBookLink){await setDoc(doc(db,'book
 export async function updateBookLink(item:CloudBookLink){await setDoc(doc(db,'bookLinks',item.id),item,{merge:true});return item;}
 export async function deleteBookLink(id:string){await deleteDoc(doc(db,'bookLinks',id));return id;}
 export async function getBookLinks(grade:string,subject:string){
+ const scopedGrade=normalizeScope(grade);
+ const scopedSubject=normalizeScope(subject);
+ if(!scopedGrade||!scopedSubject)return [];
  try{
-  const s=await getDocs(byScope('bookLinks',grade,subject));
-  return newest(s.docs.map(x=>x.data() as CloudBookLink).filter(x=>x.grade===grade&&x.subject===subject));
+  const s=await getDocs(byScope('bookLinks',scopedGrade,scopedSubject));
+  return newest(s.docs.map(x=>x.data() as CloudBookLink).filter(x=>normalizeScope(x.grade)===scopedGrade&&normalizeScope(x.subject)===scopedSubject));
  }catch{
   return [];
  }
