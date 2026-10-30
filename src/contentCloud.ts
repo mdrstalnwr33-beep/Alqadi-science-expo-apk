@@ -8,6 +8,8 @@ export type CloudNotice={id:string;studentCode?:string;grade?:string;title:strin
 const byScope=(name:string,grade:string,subject:string)=>query(collection(db,name),where('grade','==',grade),where('subject','==',subject));
 const newest=<T extends {createdAt:number}>(items:T[])=>items.sort((a,b)=>b.createdAt-a.createdAt);
 export async function publishLesson(item:CloudLesson){await setDoc(doc(db,'lessons',item.id),item);return item;}
+export async function updateLesson(item:CloudLesson){await setDoc(doc(db,'lessons',item.id),item,{merge:true});return item;}
+export async function deleteLesson(id:string){await deleteDoc(doc(db,'lessons',id));return id;}
 export async function getCloudLessons(grade:string,subject:string){const s=await getDocs(byScope('lessons',grade,subject));return newest(s.docs.map(x=>x.data() as CloudLesson));}
 export async function publishHomework(item:any){await setDoc(doc(db,'homework',item.id),item);return item;}
 export async function getCloudHomework(grade:string,subject:string){const s=await getDocs(byScope('homework',grade,subject));return newest(s.docs.map(x=>x.data() as any));}
