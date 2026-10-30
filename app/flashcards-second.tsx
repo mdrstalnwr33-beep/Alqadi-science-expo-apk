@@ -26,7 +26,24 @@ const biology:Card[]=[
 {icon:'♻️',accent:'#059669',question:'ما دورة الكربون؟',answer:'تتوزع عناصر الكربون بين الغلاف الجوي والماء والكائنات الحية والمواد العضوية والصخور، وتنتقل بينها عبر عمليات طبيعية مختلفة.',tag:'دورات العناصر'},
 ];
 
-const data:Record<string,{title:string;icon:string;cards:Card[]}>= {'الكيمياء':{title:'بطاقات الكيمياء 3D • الثاني الثانوي',icon:'⚗️',cards:chemistry},'الأحياء':{title:'بطاقات الأحياء 3D • الثاني الثانوي',icon:'🧬',cards:biology}};
+const physics:Card[]=[
+{icon:'⚡',accent:'#2563EB',question:'ما المقصود بالقوة الدافعة الكهربائية؟',answer:'هي مقدار الشغل المبذول لتحريك وحدة الشحنة داخل المصدر، وتُقاس بالفولت.',tag:'الكهرباء'},
+{icon:'🔋',accent:'#0EA5E9',question:'ما العلاقة بين فرق الجهد والشحنة والشغل؟',answer:'فرق الجهد يساوي الشغل المبذول لنقل الشحنة مقسومًا على مقدار الشحنة: جـ = شغل ÷ شحنة.',tag:'فرق الجهد'},
+{icon:'🔌',accent:'#7C3AED',question:'ماذا يحدث لفرق الجهد عند مرور التيار في مقاومة؟',answer:'يحدث هبوط في فرق الجهد بسبب استهلاك جزء من الطاقة الكهربائية في المقاومة.',tag:'المقاومة'},
+{icon:'🔁',accent:'#10B981',question:'ما نص القانون الثاني لكيرشوف؟',answer:'في أي دائرة مغلقة للتيار المستمر يكون المجموع الجبري لفروق الجهد والقوى الدافعة الكهربائية مساويًا للصفر.',tag:'قوانين كيرشوف'},
+{icon:'🧮',accent:'#F59E0B',question:'بطارية قوتها الدافعة 20 فولت وثلاثة فروق جهد مقدارها 5 و10 و5 فولت. ما المجموع؟',answer:'المجموع 20 فولت، ولذلك يتحقق الاتزان في الحلقة وفق القانون الثاني لكيرشوف.',tag:'تطبيق قانون كيرشوف'},
+{icon:'🧲',accent:'#EF4444',question:'ماذا يحدث بين سلكين متوازيين يحملان تيارين في الاتجاه نفسه؟',answer:'تنشأ بينهما قوة مغناطيسية تجاذبية.',tag:'القوة المغناطيسية'},
+{icon:'🧲',accent:'#DC2626',question:'ماذا يحدث بين سلكين متوازيين يحملان تيارين في اتجاهين متعاكسين؟',answer:'تنشأ بينهما قوة مغناطيسية تنافرية.',tag:'المغناطيسية'},
+{icon:'⚙️',accent:'#0891B2',question:'ما العلاقة العامة للقوة المغناطيسية بين سلكين متوازيين؟',answer:'تزداد القوة بزيادة شدة التيارين وطول السلكين، وتتناقص بزيادة المسافة بينهما.',tag:'سلكان متوازيان'},
+{icon:'💡',accent:'#EAB308',question:'كيف تحسب الطاقة الكهربائية المستهلكة؟',answer:'يمكن حسابها من العلاقة: الطاقة = فرق الجهد × شدة التيار × الزمن.',tag:'الطاقة الكهربائية'},
+{icon:'📐',accent:'#8B5CF6',question:'جهاز يعمل بجهد 220 فولت وتيار 8 أمبير لمدة ساعة. ما الطاقة المستهلكة تقريبًا؟',answer:'الطاقة = 220 × 8 × 3600 = 6,336,000 جول، وهي تقارب 1.76 كيلوواط·ساعة.',tag:'مسألة تطبيقية'},
+];
+
+const data:Record<string,{title:string;icon:string;cards:Card[]}>= {
+ 'الكيمياء':{title:'بطاقات الكيمياء 3D • الثاني الثانوي',icon:'⚗️',cards:chemistry},
+ 'الفيزياء':{title:'بطاقات الفيزياء 3D • الثاني الثانوي',icon:'⚡',cards:physics},
+ 'الأحياء':{title:'بطاقات الأحياء 3D • الثاني الثانوي',icon:'🧬',cards:biology},
+};
 
 export default function SecondFlashcards(){
  const p=useLocalSearchParams<{grade?:string;subject?:string}>();
@@ -39,7 +56,7 @@ export default function SecondFlashcards(){
  const next=()=>{setFlipped(false);rotation.setValue(0);setIndex(v=>(v+1)%data[subject].cards.length)};
  const prev=()=>{setFlipped(false);rotation.setValue(0);setIndex(v=>(v-1+data[subject].cards.length)%data[subject].cards.length)};
  if(grade!=='الثاني الثانوي') return <SafeAreaView style={s.safe}><View style={s.center}><Text style={s.icon}>🔒</Text><Text style={s.big}>هذه الصفحة مخصصة للثاني الثانوي</Text><Pressable style={s.btn} onPress={()=>router.back()}><Text style={s.btnText}>العودة</Text></Pressable></View></SafeAreaView>;
- if(!subject) return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.content}><Pressable onPress={()=>router.back()}><Text style={s.back}>‹ رجوع</Text></Pressable><Text style={s.title}>🎴 المراجعة التفاعلية 3D</Text><Text style={s.sub}>الثاني الثانوي • اختر المادة</Text><View style={s.grid}>{Object.entries(data).map(([k,v])=><Pressable key={k} style={[s.choose,{borderColor:v.cards[0].accent}]} onPress={()=>open(k)}><Text style={s.chooseIcon}>{v.icon}</Text><Text style={s.chooseTitle}>{v.title}</Text><Text style={s.count}>{v.cards.length} بطاقات</Text></Pressable>)}<Pressable style={[s.choose,{borderColor:'#94A3B8'}]} onPress={()=>router.back()}><Text style={s.chooseIcon}>⚡</Text><Text style={s.chooseTitle}>بطاقات الفيزياء 3D</Text><Text style={s.count}>بانتظار ملزمة الفيزياء الثاني</Text></Pressable></View></ScrollView></SafeAreaView>;
+ if(!subject) return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.content}><Pressable onPress={()=>router.back()}><Text style={s.back}>‹ رجوع</Text></Pressable><Text style={s.title}>🎴 المراجعة التفاعلية 3D</Text><Text style={s.sub}>الثاني الثانوي • اختر المادة</Text><View style={s.grid}>{Object.entries(data).map(([k,v])=><Pressable key={k} style={[s.choose,{borderColor:v.cards[0].accent}]} onPress={()=>open(k)}><Text style={s.chooseIcon}>{v.icon}</Text><Text style={s.chooseTitle}>{v.title}</Text><Text style={s.count}>{v.cards.length} بطاقات</Text></Pressable>)}</View></ScrollView></SafeAreaView>;
  const pack=data[subject]; const card=pack.cards[index]; const front=rotation.interpolate({inputRange:[0,1],outputRange:['0deg','180deg']}); const back=rotation.interpolate({inputRange:[0,1],outputRange:['180deg','360deg']});
  return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.content}><View style={s.top}><Pressable onPress={()=>setSubject('')}><Text style={s.back}>‹ المواد</Text></Pressable><Text style={s.kicker}>الثاني الثانوي • {subject}</Text><Text style={s.title}>{pack.icon} {pack.title}</Text></View><Text style={s.progress}>البطاقة {index+1} من {pack.cards.length}</Text><View style={s.track}><View style={[s.fill,{width:`${((index+1)/pack.cards.length)*100}%`,backgroundColor:card.accent}]}/></View><Pressable onPress={flip} style={s.stage}><Animated.View style={[s.card,{backgroundColor:card.accent,transform:[{perspective:1000},{rotateY:front}]}]}><Text style={s.tag}>{card.tag}</Text><Text style={s.cardIcon}>{card.icon}</Text><Text style={s.q}>{card.question}</Text><Text style={s.hint}>اضغط لقلب البطاقة 👆</Text></Animated.View><Animated.View style={[s.card,s.answerCard,{transform:[{perspective:1000},{rotateY:back}]}]}><Text style={[s.answerLabel,{color:card.accent}]}>💡 الإجابة</Text><Text style={s.answer}>{card.answer}</Text></Animated.View></Pressable><View style={s.controls}><Pressable style={s.control} onPress={prev}><Text style={s.controlText}>→ السابقة</Text></Pressable><Pressable style={[s.flip,{backgroundColor:card.accent}]} onPress={flip}><Text style={s.btnText}>🔄 قلب البطاقة</Text></Pressable><Pressable style={s.control} onPress={next}><Text style={s.controlText}>التالية ←</Text></Pressable></View><View style={s.challenge}><Text style={s.challengeTitle}>🏆 تحدي سريع</Text><Text style={s.challengeText}>حاول الإجابة قبل قلب البطاقة.</Text></View></ScrollView></SafeAreaView>;
 }
