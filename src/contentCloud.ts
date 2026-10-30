@@ -18,7 +18,14 @@ export async function getCloudExams(grade:string,subject:string){const s=await g
 export async function saveBookLink(item:CloudBookLink){await setDoc(doc(db,'bookLinks',item.id),item);return item;}
 export async function updateBookLink(item:CloudBookLink){await setDoc(doc(db,'bookLinks',item.id),item,{merge:true});return item;}
 export async function deleteBookLink(id:string){await deleteDoc(doc(db,'bookLinks',id));return id;}
-export async function getBookLinks(grade:string,subject:string){const s=await getDocs(byScope('bookLinks',grade,subject));return newest(s.docs.map(x=>x.data() as CloudBookLink));}
+export async function getBookLinks(grade:string,subject:string){
+ try{
+  const s=await getDocs(byScope('bookLinks',grade,subject));
+  return newest(s.docs.map(x=>x.data() as CloudBookLink).filter(x=>x.grade===grade&&x.subject===subject));
+ }catch{
+  return [];
+ }
+}
 export async function publishNotice(item:CloudNotice){await setDoc(doc(db,'notifications',item.id),item);}
 export async function getStudentNotices(code:string,grade:string){
  const [student,gradeSnap]=await Promise.all([
