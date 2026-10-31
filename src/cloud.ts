@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, deleteDoc, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, query, runTransaction, serverTimestamp, setDoc, where } from 'firebase/firestore';
 import { db, firebaseApp } from './firebase';
 import { getDownloadURL, getStorage, ref, uploadBytes } from 'firebase/storage';
 import type { LocalStudent } from './storage';
@@ -20,6 +20,20 @@ export async function getCloudStudent(code:string): Promise<LocalStudent|null> {
   if (!snap.exists()) return null;
   const data = snap.data();
   return { id:String(data.id || code), name:String(data.name || 'الطالب'), code, grade:String(data.grade || ''), active:data.active !== false };
+}
+export type CloudStudentRecord = LocalStudent & { activeDeviceId?:string; lastLoginAt?:number };
+function timestampMillis(value:unknown):number|undefined {
+  if(typeof value==='number')return value;
+  if(value&&typeof (value as {toMillis?:unknown}).toMillis==='function')return (value as {toMillis:()=>number}).toMillis();
+  return undefined;
+}
+export async function getCloudStudents(grade?:string):Promise<CloudStudentRecord[]> {
+  const studentsRef=collection(db,'students');
+  const snapshot=await getDocs(grade?query(studentsRef,where('grade','==',grade)):studentsRef);
+  return snapshot.docs.map(item=>{
+    const data=item.data();
+    return {id:String(data.id||item.id),name:String(data.name||'الطالب'),code:item.id,grade:String(data.grade||''),active:data.active!==false,activeDeviceId:typeof data.activeDeviceId==='string'?data.activeDeviceId:'',lastLoginAt:timestampMillis(data.lastLoginAt)};
+  });
 }
 export async function saveCloudStudent(student:LocalStudent) {
   if (!cleanCode(student.code)) throw new Error('Student code must contain exactly six digits');

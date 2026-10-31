@@ -1,11 +1,12 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { getMotivationContent, type MotivationChallenge, type MotivationExperiment, type MotivationQuestion } from '../src/motivationCloud';
 
 export default function MotivationContent(){
+ const p=useLocalSearchParams<{grade?:string}>(); const grade=p.grade||'';
  const [challenges,setChallenges]=useState<MotivationChallenge[]>([]); const [questions,setQuestions]=useState<MotivationQuestion[]>([]); const [experiments,setExperiments]=useState<MotivationExperiment[]>([]); const [open,setOpen]=useState<string|null>(null);
- useEffect(()=>{(async()=>{const c=await getMotivationContent();setChallenges(c.challenges.filter(x=>x.active));setQuestions(c.questions.filter(x=>x.active));setExperiments(c.experiments.filter(x=>x.active));})();},[]);
+ useEffect(()=>{(async()=>{const c=await getMotivationContent(grade);setChallenges(c.challenges.filter(x=>x.active));setQuestions(c.questions.filter(x=>x.active));setExperiments(c.experiments.filter(x=>x.active));})();},[grade]);
  return <SafeAreaView style={styles.safe}><ScrollView contentContainerStyle={styles.container}><Pressable onPress={()=>router.back()}><Text style={styles.back}>رجوع ›</Text></Pressable><Text style={styles.title}>🚀 تحديات ومحتوى المعلم</Text><Text style={styles.sub}>أسئلة وتجارب وتحديات أضافها معلمك.</Text>
  <Text style={styles.section}>🏆 التحديات</Text>{challenges.length?challenges.map(x=><View key={x.id} style={styles.card}><Text style={styles.cardTitle}>{x.title}</Text><Text style={styles.text}>{x.text}</Text><Text style={styles.reward}>الهدف: {x.target} • المكافأة: +{x.reward} XP</Text></View>):<Empty text="لا توجد تحديات مضافة بعد."/>}
  <Text style={styles.section}>❓ أسئلة التحفيز</Text>{questions.length?questions.map(x=><Pressable key={x.id} style={styles.card} onPress={()=>setOpen(open===x.id?null:x.id)}><Text style={styles.tag}>{x.subject} • +{x.reward} XP</Text><Text style={styles.cardTitle}>{x.question}</Text>{open===x.id&&<View style={styles.answer}><Text style={styles.answerTitle}>الإجابة الصحيحة</Text><Text style={styles.text}>{x.answer}</Text></View>}</Pressable>):<Empty text="لا توجد أسئلة مضافة بعد."/>}

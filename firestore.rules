@@ -12,6 +12,12 @@ service cloud.firestore {
     match /homeworkSubmissions/{id} { allow read, write: if true; }
     match /content/{id} { allow read: if true; allow write: if false; }
     match /publicContent/{id} { allow read: if true; allow write: if true; }
+    // The current app uses school codes instead of Firebase Authentication.
+    // These temporary public-code rules enable cross-device roster, login and attendance sync.
+    // Replace them with authenticated teacher/student role checks before public deployment.
+    match /students/{id} { allow read, write: if true; }
+    match /settings/{id} { allow read, write: if true; }
+    match /attendance/{id} { allow read, write: if true; }
     match /{document=**} { allow read, write: if false; }
   }
 }

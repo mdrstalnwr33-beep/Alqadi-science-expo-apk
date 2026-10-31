@@ -125,7 +125,7 @@ function makeRivals(week: string) {
 export async function getWeeklyTournament(student: string) {
   const week = isoWeekKey(); const old = await readJson<any>(tournamentKey(student), {});
   const base = old.week === week ? old : { week, points: 0, roundsCompleted: 0, maxRounds: 5, wins: 0, claimed: false };
-  const rivals = makeRivals(week); const leaderboard = [...rivals, { name: student || 'أنت', points: base.points, isMe: true }].sort((a, b) => b.points - a.points).slice(0, 10);
+  const rivals = makeRivals(week); const leaderboard: {name:string;points:number;isMe?:boolean}[] = [...rivals, { name: student || 'أنت', points: base.points, isMe: true }].sort((a, b) => b.points - a.points).slice(0, 10);
   const rank = leaderboard.findIndex(x => x.isMe) + 1;
   return { ...base, rank, leaderboard };
 }

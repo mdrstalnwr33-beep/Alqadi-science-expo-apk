@@ -32,8 +32,13 @@ export default function LoginScreen(){
    }
    let student:LocalStudent|null=null;try{student=await getCloudStudent(code)}catch{student=students.find(s=>s.code===code)||null;if(!student)return Alert.alert('تعذر الاتصال','تعذر الاتصال بالسحابة ولا يوجد هذا الطالب محفوظًا على هذا الجهاز.')}
    if(!student)student=students.find(s=>s.code===code)||null;if(!student)return Alert.alert('الكود غير موجود','هذا الكود لم ينشئه المعلم.');if(!student.active)return Alert.alert('الحساب موقوف','تم إيقاف هذا الطالب من قبل المعلم.');
-   const deviceId=await getDeviceId();let claim:'claimed'|'same-device'|'occupied'|'inactive'|'missing';try{claim=await claimStudentDevice(code,deviceId)}catch{claim='same-device'}
-   if(claim==='occupied')return Alert.alert('الحساب مستخدم على جهاز آخر','هذا الكود مسجل الدخول من جهاز آخر. سجّل الخروج من الجهاز الآخر أولًا.');if(claim==='inactive')return Alert.alert('الحساب موقوف','تم إيقاف هذا الطالب من قبل المعلم.');if(claim==='missing'&&!students.some(s=>s.code===code))return Alert.alert('الكود غير موجود','لم يتم العثور على سجل الطالب.');
+   const deviceId=await getDeviceId();let claim:'claimed'|'same-device'|'occupied'|'inactive'|'missing';
+   try{claim=await claimStudentDevice(code,deviceId)}catch(error){
+    const reason=String((error as {code?:string})?.code||'');
+    Alert.alert('تعذر التحقق من الحساب',reason.includes('permission-denied')?'تعذر الوصول إلى سجل الطالب في Firebase. يجب نشر قواعد Firestore المحدثة.':'تعذر الاتصال بالسحابة للتحقق من الجهاز. أعد المحاولة عند توفر الإنترنت.');
+    return;
+   }
+   if(claim==='occupied')return Alert.alert('الحساب مستخدم على جهاز آخر','هذا الكود مسجل الدخول من جهاز آخر. سجّل الخروج من الجهاز المسجل فيه أولًا.');if(claim==='inactive')return Alert.alert('الحساب موقوف','تم إيقاف هذا الطالب من قبل المعلم.');if(claim==='missing')return Alert.alert('الحساب غير متزامن','لم يُعثر على سجل الطالب في السحابة. اطلب من المعلم مزامنة قائمة الطلاب ثم أعد المحاولة.');
    await setSession({role:'student',name:student.name,grade:student.grade,code:student.code,active:true});router.dismissAll();router.replace({pathname:'/home',params:{role:'student',name:student.name,grade:student.grade,code:student.code}});
   }finally{setBusy(false)}
  };
