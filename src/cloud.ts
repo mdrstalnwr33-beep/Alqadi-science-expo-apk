@@ -3,6 +3,7 @@ import { db } from './firebase';
 import type { LocalStudent } from './storage';
 
 const cleanCode = (code:string) => /^\d{6}$/.test(code) ? code : null;
+const PRESENCE_TIMEOUT_MS = 2 * 60 * 1000;
 
 export async function getCloudTeacherCode(): Promise<string|null> {
   const snap = await getDoc(doc(db, 'settings', 'teacher'));
@@ -48,7 +49,9 @@ export async function claimStudentDevice(code:string,deviceId:string):Promise<'c
     const data=snap.data();
     if(data.active===false)return 'inactive';
     const current=typeof data.activeDeviceId==='string'?data.activeDeviceId:'';
-    if(current&&current!==deviceId)return 'occupied';
+    const lastSeen=typeof data.lastSeenAt==='number'?data.lastSeenAt:0;
+    const stale=current&&current!==deviceId&&(!lastSeen || Date.now()-lastSeen>PRESENCE_TIMEOUT_MS);
+    if(current&&current!==deviceId&&!stale)return 'occupied';
     tx.update(ref,{activeDeviceId:deviceId,lastLoginAt:serverTimestamp(),lastSeenAt:Date.now(),updatedAt:Date.now()});
     return current===deviceId?'same-device':'claimed';
   });
