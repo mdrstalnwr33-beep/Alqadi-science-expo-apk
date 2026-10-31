@@ -7,7 +7,11 @@ const flashcardInfo:Record<string,[string,string,string]>={'الكيمياء':['
 export default function TeacherSubject(){
  const p=useLocalSearchParams<{subject?:string;grade?:string;name?:string;code?:string}>(); const subject=p.subject||subjects[0].name; const grade=p.grade||'الأول الثانوي';
  const go=(path:string)=>router.push({pathname:path as never,params:{subject,grade,role:'teacher',name:p.name||'',code:p.code||''}});
- const icon=subjects.find(x=>x.name===subject)?.icon||'🔬'; const flash=flashcardInfo[subject]; const flashPath=grade==='الثاني الثانوي'?'/flashcards-second':'/flashcards';
+ const icon=subjects.find(x=>x.name===subject)?.icon||'🔬'; const flash=flashcardInfo[subject];
+ // Use the proven general flashcards route for both grades. It already reads the grade
+ // parameter and builds the correct number of cards from the curriculum, avoiding a
+ // route-not-found problem for the second-secondary screen.
+ const flashPath='/flashcards';
  const items=flash?[...baseItems.slice(0,4),[...flash,flashPath] as const,...baseItems.slice(4)]:baseItems;
  return <SafeAreaView style={styles.safe}><ScrollView contentContainerStyle={styles.content}><Pressable onPress={()=>router.back()}><Text style={styles.back}>رجوع ›</Text></Pressable><View style={styles.hero}><Text style={styles.icon}>{icon}</Text><Text style={styles.title}>{subject}</Text><Text style={styles.subtitle}>{grade} • لوحة إدارة المادة</Text></View><Text style={styles.heading}>إدارة {subject}</Text><View style={styles.grid}>{items.map(([i,t,path])=><Pressable key={t} style={[styles.card,t.includes('بطاقات')&&styles.flashCard]} onPress={()=>go(path)}><Text style={styles.cardIcon}>{i}</Text><Text style={styles.cardTitle}>{t}</Text><Text style={styles.cardText}>{t==='حضور وتفاعل الطلاب'?'متابعة الحضور والنشاط والتفاعل':t.includes('بطاقات')?'فتح البطاقات التفاعلية':`إدارة ${t.replace('المدرسية','').replace('الشهرية','')}`}</Text></Pressable>)}</View></ScrollView></SafeAreaView>;
 }
