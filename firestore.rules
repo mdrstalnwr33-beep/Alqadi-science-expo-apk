@@ -12,6 +12,12 @@ service cloud.firestore {
     match /homeworkSubmissions/{id} { allow read, write: if true; }
     match /content/{id} { allow read: if true; allow write: if false; }
     match /publicContent/{id} { allow read: if true; allow write: if true; }
+
+    // Student accounts and the teacher access code are cloud-synchronized.
+    // The app currently uses school/student codes instead of Firebase Authentication.
+    match /students/{id} { allow read, write: if true; }
+    match /settings/{id} { allow read, write: if true; }
+
     match /{document=**} { allow read, write: if false; }
   }
 }
