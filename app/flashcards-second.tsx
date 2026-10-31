@@ -3,40 +3,89 @@ import { useRef, useState } from 'react';
 import { Animated, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 type Card={icon:string;accent:string;question:string;answer:string;tag:string};
+const c=(icon:string,accent:string,question:string,answer:string,tag:string):Card=>({icon,accent,question,answer,tag});
 
 const chemistry:Card[]=[
-{icon:'⚗️',accent:'#7C3AED',question:'ما المقصود بالتفاعل الكيميائي؟',answer:'عملية تتحول فيها المواد المتفاعلة إلى مواد ناتجة تختلف في خواصها وصفاتها عن المواد المتفاعلة.',tag:'التفاعل الكيميائي'},
-{icon:'⚡',accent:'#F59E0B',question:'ما المقصود بسرعة التفاعل الكيميائي؟',answer:'مقدار التغير في تركيز أحد المتفاعلات أو النواتج خلال وحدة الزمن.',tag:'سرعة التفاعلات'},
-{icon:'🔥',accent:'#EF4444',question:'ما دور العامل الحفاز في التفاعل؟',answer:'يساعد على زيادة سرعة التفاعل عن طريق توفير مسار ذي طاقة تنشيط أقل، دون أن يُستهلك في التفاعل.',tag:'العامل الحفاز'},
-{icon:'⛰️',accent:'#0EA5E9',question:'ما المقصود بطاقة التنشيط؟',answer:'الحد الأدنى من الطاقة اللازمة لبدء التفاعل الكيميائي وفق مفهوم الملزمة.',tag:'طاقة التنشيط'},
-{icon:'⚖️',accent:'#10B981',question:'متى يصل التفاعل العكوسي إلى حالة الاتزان الكيميائي؟',answer:'عندما تتساوى سرعة التفاعل الأمامي مع سرعة التفاعل العكسي، مع ثبات تراكيز المتفاعلات والنواتج.',tag:'الاتزان الكيميائي'},
-{icon:'🔄',accent:'#06B6D4',question:'هل تتوقف التفاعلات عند الاتزان الكيميائي؟',answer:'لا. الاتزان الكيميائي حالة ديناميكية تستمر فيها التفاعلات، لكن السرعتين الأمامية والعكسية تكونان متساويتين.',tag:'فهم الاتزان'},
-{icon:'🍶',accent:'#8B5CF6',question:'ما الكحولات في المركبات العضوية الأكسجينية؟',answer:'مركبات عضوية تحتوي على مجموعة الهيدروكسيل OH مرتبطة بذرة كربون، وتتناول الملزمة أنواع الكحولات بحسب عدد مجموعات الهيدروكسيل.',tag:'المركبات العضوية'},
-{icon:'🧪',accent:'#EC4899',question:'ما أنواع الكحولات التي تظهر في ملزمة الكيمياء؟',answer:'تتضمن أحادية الهيدروكسيل وثنائية الهيدروكسيل وثلاثية الهيدروكسيل ومتعددة الهيدروكسيل.',tag:'أنواع الكحولات'},
-];
-
-const biology:Card[]=[
-{icon:'🌋',accent:'#EF4444',question:'ما الصخور النارية؟',answer:'صخور تتكون من تصلب وتبرد المواد المنصهرة، وتختلف خصائصها بحسب مكان وسرعة التبريد.',tag:'الصخور النارية'},
-{icon:'🪨',accent:'#92400E',question:'كيف تتكون الصخور الرسوبية؟',answer:'تتكون نتيجة التجوية والتعرية والنقل والترسيب، ثم تماسك الرواسب وتحولها إلى صخور رسوبية.',tag:'الصخور الرسوبية'},
-{icon:'🏞️',accent:'#0EA5E9',question:'ما دور الأنهار والرياح والتيارات في الصخور الرسوبية؟',answer:'تساهم في نقل الفتات الصخري من أماكن التجوية والتعرية إلى أماكن الترسيب.',tag:'النقل والترسيب'},
-{icon:'🧱',accent:'#F59E0B',question:'إلى ماذا تصنف الصخور الرسوبية في الملزمة؟',answer:'تصنف إلى صخور فتاتية وصخور كيميائية وصخور عضوية بحسب طريقة تكونها.',tag:'تصنيف الصخور'},
-{icon:'🔄',accent:'#7C3AED',question:'ما الصخور المتحولة؟',answer:'صخور تنتج من تحول الصخور النارية أو الرسوبية أو المتحولة بفعل تغيرات طبيعية وكيميائية مثل الضغط والحرارة والنشاط الكيميائي.',tag:'الصخور المتحولة'},
-{icon:'🔥',accent:'#DC2626',question:'ما المقصود بالتحول الصخري؟',answer:'هو التغير الذي يطرأ على نسيج الصخر أو تركيبه المعدني أو كليهما وهو في الحالة الصلبة.',tag:'التحول'},
-{icon:'🧂',accent:'#0284C7',question:'ما الملح الصخري وما بعض استعمالاته المذكورة؟',answer:'من الخامات الصناعية المهمة، ويستعمل كملح للطعام وحفظ الأغذية ومعالجة المياه، ويدخل في صناعات متعددة.',tag:'الخامات اللافلزية'},
-{icon:'♻️',accent:'#059669',question:'ما دورة الكربون؟',answer:'تتوزع عناصر الكربون بين الغلاف الجوي والماء والكائنات الحية والمواد العضوية والصخور، وتنتقل بينها عبر عمليات طبيعية مختلفة.',tag:'دورات العناصر'},
+ c('⚗️','#7C3AED','ما المقصود بسرعة التفاعل الكيميائي؟','مقدار التغير في تركيز مادة متفاعلة أو ناتجة خلال وحدة الزمن.','سرعة التفاعل'),
+ c('📈','#8B5CF6','كيف تؤثر طبيعة المواد في سرعة التفاعل؟','تختلف السرعة باختلاف طبيعة المواد والروابط والبنية الكيميائية للمتفاعلات.','العوامل المؤثرة'),
+ c('🧪','#EC4899','كيف يؤثر التركيز في سرعة التفاعل؟','زيادة تركيز المتفاعلات تزيد عدد التصادمات الفعالة غالبًا، فتزداد سرعة التفاعل.','التركيز'),
+ c('🔥','#EF4444','كيف تؤثر درجة الحرارة في سرعة التفاعل؟','رفع درجة الحرارة يزيد طاقة الجسيمات وعدد التصادمات الفعالة، فتزداد السرعة.','درجة الحرارة'),
+ c('🪨','#F59E0B','كيف تؤثر مساحة السطح في سرعة التفاعل؟','زيادة مساحة السطح للمواد الصلبة تزيد التلامس والتصادمات، فتزيد سرعة التفاعل.','مساحة السطح'),
+ c('⚙️','#0EA5E9','ما دور العامل الحفاز؟','يوفر مسارًا بديلًا بطاقة تنشيط أقل ويسرع التفاعل دون أن يُستهلك.','العامل الحفاز'),
+ c('⏱️','#10B981','ما المقصود بطاقة التنشيط؟','هي الحد الأدنى من الطاقة اللازمة لبدء التفاعل الكيميائي.','طاقة التنشيط'),
+ c('🧮','#06B6D4','لماذا نستخدم قوانين سرعة التفاعل؟','لربط سرعة التفاعل بتركيز المواد والعوامل المؤثرة عليها.','تطبيقات السرعة'),
+ c('⚖️','#10B981','ما الاتزان الكيميائي؟','حالة ديناميكية تتساوى فيها سرعـة التفاعل الأمامي والعكسي مع ثبات التراكيز.','الاتزان'),
+ c('🔄','#14B8A6','هل تتوقف التفاعلات عند الاتزان؟','لا، يستمر التفاعلان الأمامي والعكسي لكن بسرعتين متساويتين.','الاتزان الديناميكي'),
+ c('📐','#0891B2','ما المقصود بثابت الاتزان؟','مقدار يصف حالة الاتزان ويرتبط بتراكيز المواد عند درجة حرارة ثابتة.','ثابت الاتزان'),
+ c('🌡️','#0284C7','ما أثر التركيز على الاتزان؟','يحدث النظام تغيرًا في الاتجاه الذي يقلل أثر التغير ويعيد حالة الاتزان.','مبدأ لوشاتيليه'),
+ c('🔥','#DC2626','ما أثر درجة الحرارة على الاتزان؟','تغيير الحرارة يغير موضع الاتزان بحسب كون التفاعل الأمامي ماصًا أو طاردًا للحرارة.','تأثير الحرارة'),
+ c('⬆️','#F97316','ما أثر الضغط على الاتزان الغازي؟','تغير الضغط يؤثر في الاتزان إذا اختلف عدد مولات الغاز بين طرفي التفاعل.','تأثير الضغط'),
+ c('🧭','#7C3AED','كيف نحدد اتجاه انتقال الاتزان؟','نقارن التغير المؤثر مع استجابة النظام وفق مبدأ لوشاتيليه.','اتجاه الاتزان'),
+ c('🍶','#A855F7','ما الكحولات؟','مركبات عضوية تحتوي على مجموعة هيدروكسيل OH مرتبطة بذرة كربون.','الكحولات'),
+ c('🧪','#C026D3','ما أنواع الكحولات بحسب عدد مجموعات OH؟','منها أحادية وثنائية وثلاثية ومتعددة الهيدروكسيل.','أنواع الكحولات'),
+ c('💧','#0891B2','ما من خواص الكحولات؟','تختلف خواصها الفيزيائية والكيميائية باختلاف تركيبها وعدد ذرات الكربون ومجموعات OH.','خواص الكحولات'),
+ c('🔥','#F43F5E','كيف تتفاعل الكحولات؟','تدخل في تفاعلات كيميائية متعددة بحسب نوع الكحول وظروف التفاعل.','تفاعلات الكحولات'),
+ c('🧫','#E11D48','ما الألدهيدات؟','مركبات عضوية أكسجينية تحتوي على مجموعة ألدهيد في طرف السلسلة الكربونية.','الألدهيدات'),
+ c('🧴','#BE123C','ما الكيتونات؟','مركبات عضوية تحتوي على مجموعة كربونيل داخل السلسلة الكربونية.','الكيتونات'),
+ c('🍋','#B91C1C','ما الأحماض الكربوكسيلية؟','مركبات عضوية تحتوي على المجموعة الوظيفية الكربوكسيلية COOH.','الأحماض الكربوكسيلية'),
+ c('🌸','#DB2777','ما الإسترات؟','مركبات عضوية تنتج غالبًا من تفاعل حمض كربوكسيلي مع كحول، ولها استعمالات متعددة.','الإسترات'),
+ c('🧴','#9333EA','ما الإيثرات؟','مركبات عضوية تحتوي على ذرة أكسجين مرتبطة بمجموعتين عضويتين.','الإيثرات'),
 ];
 
 const physics:Card[]=[
-{icon:'⚡',accent:'#2563EB',question:'ما المقصود بالقوة الدافعة الكهربائية؟',answer:'هي مقدار الشغل المبذول لتحريك وحدة الشحنة داخل المصدر، وتُقاس بالفولت.',tag:'الكهرباء'},
-{icon:'🔋',accent:'#0EA5E9',question:'ما العلاقة بين فرق الجهد والشحنة والشغل؟',answer:'فرق الجهد يساوي الشغل المبذول لنقل الشحنة مقسومًا على مقدار الشحنة: جـ = شغل ÷ شحنة.',tag:'فرق الجهد'},
-{icon:'🔌',accent:'#7C3AED',question:'ماذا يحدث لفرق الجهد عند مرور التيار في مقاومة؟',answer:'يحدث هبوط في فرق الجهد بسبب استهلاك جزء من الطاقة الكهربائية في المقاومة.',tag:'المقاومة'},
-{icon:'🔁',accent:'#10B981',question:'ما نص القانون الثاني لكيرشوف؟',answer:'في أي دائرة مغلقة للتيار المستمر يكون المجموع الجبري لفروق الجهد والقوى الدافعة الكهربائية مساويًا للصفر.',tag:'قوانين كيرشوف'},
-{icon:'🧮',accent:'#F59E0B',question:'بطارية قوتها الدافعة 20 فولت وثلاثة فروق جهد مقدارها 5 و10 و5 فولت. ما المجموع؟',answer:'المجموع 20 فولت، ولذلك يتحقق الاتزان في الحلقة وفق القانون الثاني لكيرشوف.',tag:'تطبيق قانون كيرشوف'},
-{icon:'🧲',accent:'#EF4444',question:'ماذا يحدث بين سلكين متوازيين يحملان تيارين في الاتجاه نفسه؟',answer:'تنشأ بينهما قوة مغناطيسية تجاذبية.',tag:'القوة المغناطيسية'},
-{icon:'🧲',accent:'#DC2626',question:'ماذا يحدث بين سلكين متوازيين يحملان تيارين في اتجاهين متعاكسين؟',answer:'تنشأ بينهما قوة مغناطيسية تنافرية.',tag:'المغناطيسية'},
-{icon:'⚙️',accent:'#0891B2',question:'ما العلاقة العامة للقوة المغناطيسية بين سلكين متوازيين؟',answer:'تزداد القوة بزيادة شدة التيارين وطول السلكين، وتتناقص بزيادة المسافة بينهما.',tag:'سلكان متوازيان'},
-{icon:'💡',accent:'#EAB308',question:'كيف تحسب الطاقة الكهربائية المستهلكة؟',answer:'يمكن حسابها من العلاقة: الطاقة = فرق الجهد × شدة التيار × الزمن.',tag:'الطاقة الكهربائية'},
-{icon:'📐',accent:'#8B5CF6',question:'جهاز يعمل بجهد 220 فولت وتيار 8 أمبير لمدة ساعة. ما الطاقة المستهلكة تقريبًا؟',answer:'الطاقة = 220 × 8 × 3600 = 6,336,000 جول، وهي تقارب 1.76 كيلوواط·ساعة.',tag:'مسألة تطبيقية'},
+ c('⚡','#2563EB','ما المقصود بالتيار الكهربائي؟','معدل مرور الشحنة الكهربائية عبر مقطع من موصل خلال الزمن.','التيار الكهربائي'),
+ c('🔋','#0EA5E9','ما التيار المستمر DC؟','تيار يسري في اتجاه ثابت، وتكون قطبيته ثابتة في المصدر.','التيار المستمر'),
+ c('〰️','#7C3AED','ما التيار المتردد AC؟','تيار يتغير مقداره واتجاهه دوريًا مع الزمن.','التيار المتردد'),
+ c('🔌','#10B981','ما القوة الدافعة الكهربائية؟','الشغل المبذول لتحريك وحدة الشحنة داخل المصدر، وتقاس بالفولت.','القوة الدافعة'),
+ c('📐','#06B6D4','ما فرق الجهد الكهربائي؟','هو الشغل المبذول لنقل وحدة الشحنة بين نقطتين.','فرق الجهد'),
+ c('🔋','#14B8A6','ما العلاقة بين القوة الدافعة وفرق الجهد؟','القوة الدافعة تمثل الطاقة التي يزود بها المصدر الشحنة، وفرق الجهد يمثل فرق الطاقة بين نقطتين.','العلاقة الكهربائية'),
+ c('➡️','#0284C7','ما اتجاه التيار الاصطلاحي؟','يُعد اتجاهه من القطب الموجب إلى القطب السالب خارج المصدر.','اتجاه التيار'),
+ c('Ω','#8B5CF6','ما قانون أوم؟','فرق الجهد يساوي شدة التيار مضروبة في المقاومة: V = IR.','قانون أوم'),
+ c('🔋','#A855F7','ما المقاومة الداخلية للمصدر؟','هي مقاومة داخلية تؤدي إلى هبوط جزء من الجهد عند مرور التيار في المصدر.','المقاومة الداخلية'),
+ c('🔄','#10B981','ما نص قانون كيرشوف الثاني؟','في الحلقة المغلقة يكون المجموع الجبري لفروق الجهد والقوى الدافعة مساويًا للصفر.','كيرشوف'),
+ c('🧮','#F59E0B','كيف نحل مسائل كيرشوف؟','نحدد الحلقات والتيارات ونطبق قوانين كيرشوف مع الإشارات الصحيحة.','مسائل كيرشوف'),
+ c('💡','#EAB308','كيف تحسب الطاقة الكهربائية؟','الطاقة = فرق الجهد × شدة التيار × الزمن.','الطاقة الكهربائية'),
+ c('⚙️','#F97316','كيف تحسب القدرة الكهربائية؟','القدرة = فرق الجهد × شدة التيار، أي P = VI.','القدرة الكهربائية'),
+ c('🔥','#EF4444','ما الحرارة الناتجة عن مرور التيار؟','تتحول طاقة كهربائية إلى حرارة في المقاومة عند مرور التيار.','التأثير الحراري'),
+ c('🏠','#DC2626','ما بعض التطبيقات الكهربائية؟','تشمل الأجهزة المنزلية والتدفئة والإضاءة والمحركات والدوائر الكهربائية.','التطبيقات'),
+ c('💧','#0891B2','ما التحليل الكهربائي؟','استخدام تيار كهربائي لإحداث تفاعل كيميائي غير تلقائي.','التحليل الكهربائي'),
+ c('📚','#0EA5E9','ما موضوعات مراجعة الوحدة الثامنة؟','مراجعة مفاهيم التيار والجهد والمقاومة والقوة الدافعة وقوانين الدوائر.','مراجعة الوحدة'),
+ c('🧲','#2563EB','ما المجال المغناطيسي؟','الحيز المحيط بمغناطيس أو تيار كهربائي تظهر فيه تأثيرات مغناطيسية.','المجال المغناطيسي'),
+ c('🧭','#7C3AED','ما الفيض المغناطيسي؟','مقدار المجال المغناطيسي الذي يخترق سطحًا معينًا.','الفيض المغناطيسي'),
+ c('📏','#8B5CF6','ما كثافة الفيض المغناطيسي؟','مقدار الفيض المغناطيسي المار عموديًا خلال وحدة المساحة.','كثافة الفيض'),
+ c('🧲','#EF4444','ما القوة على سلك يمر فيه تيار داخل مجال مغناطيسي؟','يتعرض السلك لقوة مغناطيسية تعتمد على التيار وطول السلك وشدة المجال والزاوية.','القوة المغناطيسية'),
+ c('↔️','#DC2626','ماذا يحدث بين سلكين متوازيين بتيارين في الاتجاه نفسه؟','تنشأ بينهما قوة مغناطيسية تجاذبية.','سلكان متوازيان'),
+ c('↔️','#B91C1C','ماذا يحدث إذا كان التياران في اتجاهين متعاكسين؟','تنشأ بين السلكين قوة مغناطيسية تنافرية.','التنافر المغناطيسي'),
+ c('⚙️','#0891B2','كيف تزداد القوة بين سلكين متوازيين؟','تزداد بزيادة شدة التيارين وطول السلكين، وتقل بزيادة المسافة بينهما.','تطبيق المجال'),
+ c('📘','#059669','ما أهم ما يراجع في الفصل الثاني؟','التيار والدوائر وكيرشوف والطاقة والقدرة والمغناطيسية والقوى الناتجة عن التيار.','المراجعة الشاملة'),
+];
+
+const biology:Card[]=[
+ c('🌱','#16A34A','ما المقصود بالنظام البيئي؟','مجموعة الكائنات الحية والعوامل غير الحية التي تتفاعل في مكان معين.','النظام البيئي'),
+ c('🌍','#059669','ما مكونات النظام البيئي؟','يتكون من مكونات حية مثل الكائنات، ومكونات غير حية مثل الماء والهواء والتربة والضوء.','مكونات البيئة'),
+ c('🌿','#22C55E','من هم المنتجات؟','كائنات تصنع غذاءها بنفسها غالبًا بعملية البناء الضوئي، مثل النباتات.','المنتجات'),
+ c('🐾','#F59E0B','من هم المستهلكون؟','كائنات تحصل على غذائها باستهلاك كائنات أخرى أو مواد عضوية.','المستهلكات'),
+ c('🍄','#92400E','ما دور المحللات؟','تحلل بقايا الكائنات والمواد العضوية وتعيد العناصر إلى البيئة.','المحللات'),
+ c('🦠','#7C3AED','ما الطفيليات؟','كائنات تعيش على أو داخل كائن آخر وتحصل منه على الغذاء وتؤثر فيه.','الطفيليات'),
+ c('🌊','#0EA5E9','ما الأنظمة البيئية المائية؟','بيئات تعتمد على الماء مثل البحار والأنهار والبحيرات والمناطق الرطبة.','البيئات المائية'),
+ c('🏜️','#D97706','ما الأنظمة البيئية البرية؟','بيئات على اليابسة مثل الصحاري والغابات والمراعي والمناطق الجبلية.','البيئات البرية'),
+ c('☀️','#EAB308','كيف تتدفق الطاقة في النظام البيئي؟','تنتقل الطاقة من الشمس إلى المنتجات ثم إلى المستهلكات والمحللات، مع فقد جزء كحرارة.','تدفق الطاقة'),
+ c('🐛','#16A34A','ما السلسلة الغذائية؟','مسار يوضح انتقال الغذاء والطاقة من كائن إلى آخر في النظام البيئي.','السلاسل الغذائية'),
+ c('🕸️','#15803D','ما الشبكة الغذائية؟','مجموعة سلاسل غذائية مترابطة توضح علاقات التغذية المتعددة.','الشبكات الغذائية'),
+ c('🔺','#F97316','ما هرم الطاقة؟','تمثيل يوضح تناقص الطاقة المتاحة كلما انتقلنا إلى مستوى غذائي أعلى.','هرم الطاقة'),
+ c('📈','#059669','ما الإنتاجية البيئية؟','مقدار المادة العضوية أو الطاقة التي تنتجها الكائنات خلال فترة معينة.','الإنتاجية'),
+ c('♻️','#0891B2','ما الدورات البيوجيوكيميائية؟','دورات تنتقل فيها العناصر بين الكائنات الحية والبيئة عبر عمليات طبيعية.','دورات العناصر'),
+ c('🌬️','#0284C7','ما دورة الكربون؟','انتقال الكربون بين الغلاف الجوي والكائنات والماء والصخور عبر عمليات مختلفة.','دورة الكربون'),
+ c('🌱','#16A34A','ما أهمية دورة النيتروجين؟','تتيح انتقال النيتروجين بين البيئة والكائنات ليستعمل في تكوين مركبات حيوية مهمة.','دورة النيتروجين'),
+ c('🪨','#78716C','ما المعادن والصخور؟','المعادن مواد طبيعية ذات تركيب وخواص محددة، والصخور تجمعات من معدن أو أكثر.','المعادن والصخور'),
+ c('💎','#A16207','ما بعض الخواص الفيزيائية للمعادن؟','منها اللون والبريق والقساوة والمخدش والانفصام والمكسر والكثافة.','خواص المعادن'),
+ c('🧪','#7C3AED','كيف تصنف المعادن كيميائيًا؟','تصنف إلى مجموعات بحسب تركيبها الكيميائي، مثل السيليكات والكربونات والأكاسيد.','تصنيف المعادن'),
+ c('🇾🇪','#B45309','ما أهمية المعادن والصخور الاقتصادية في اليمن؟','توجد خامات ومعادن وصخور لها قيمة اقتصادية وتدخل في البناء والصناعة والاستخدامات المختلفة.','موارد اليمن'),
+ c('🌋','#EF4444','ما الصخور النارية؟','صخور تتكون من تصلب وتبرد المواد المنصهرة، وتختلف حسب سرعة ومكان التبريد.','الصخور النارية'),
+ c('🧱','#F59E0B','ما المقصود بنسيج الصخور النارية؟','هو شكل وترتيب وحجم بلورات المعادن في الصخر، ويتأثر بمعدل التبريد.','نسيج الصخور'),
+ c('⛰️','#DC2626','ما الفرق بين الصخور النارية الجوفية والسطحية؟','الجوفية تتبرد ببطء داخل الأرض فتكون بلوراتها أكبر، والسطحية تتبرد أسرع فتكون أدق.','الجوفية والسطحية'),
+ c('🪨','#92400E','ما الصخور الرسوبية؟','صخور تتكون من ترسيب وتماسك الرواسب أو من عمليات كيميائية وعضوية.','الصخور الرسوبية'),
+ c('🔄','#7C3AED','ما الصخور المتحولة؟','صخور تتغير وهي في الحالة الصلبة بفعل الحرارة والضغط والنشاط الكيميائي.','الصخور المتحولة'),
 ];
 
 const data:Record<string,{title:string;icon:string;cards:Card[]}>= {
@@ -56,8 +105,21 @@ export default function SecondFlashcards(){
  const next=()=>{setFlipped(false);rotation.setValue(0);setIndex(v=>(v+1)%data[subject].cards.length)};
  const prev=()=>{setFlipped(false);rotation.setValue(0);setIndex(v=>(v-1+data[subject].cards.length)%data[subject].cards.length)};
  if(grade!=='الثاني الثانوي') return <SafeAreaView style={s.safe}><View style={s.center}><Text style={s.icon}>🔒</Text><Text style={s.big}>هذه الصفحة مخصصة للثاني الثانوي</Text><Pressable style={s.btn} onPress={()=>router.back()}><Text style={s.btnText}>العودة</Text></Pressable></View></SafeAreaView>;
- if(!subject) return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.content}><Pressable onPress={()=>router.back()}><Text style={s.back}>‹ رجوع</Text></Pressable><Text style={s.title}>🎴 المراجعة التفاعلية 3D</Text><Text style={s.sub}>الثاني الثانوي • اختر المادة</Text><View style={s.grid}>{Object.entries(data).map(([k,v])=><Pressable key={k} style={[s.choose,{borderColor:v.cards[0].accent}]} onPress={()=>open(k)}><Text style={s.chooseIcon}>{v.icon}</Text><Text style={s.chooseTitle}>{v.title}</Text><Text style={s.count}>{v.cards.length} بطاقات</Text></Pressable>)}</View></ScrollView></SafeAreaView>;
- const pack=data[subject]; const card=pack.cards[index]; const front=rotation.interpolate({inputRange:[0,1],outputRange:['0deg','180deg']}); const back=rotation.interpolate({inputRange:[0,1],outputRange:['180deg','360deg']});
- return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.content}><View style={s.top}><Pressable onPress={()=>setSubject('')}><Text style={s.back}>‹ المواد</Text></Pressable><Text style={s.kicker}>الثاني الثانوي • {subject}</Text><Text style={s.title}>{pack.icon} {pack.title}</Text></View><Text style={s.progress}>البطاقة {index+1} من {pack.cards.length}</Text><View style={s.track}><View style={[s.fill,{width:`${((index+1)/pack.cards.length)*100}%`,backgroundColor:card.accent}]}/></View><Pressable onPress={flip} style={s.stage}><Animated.View style={[s.card,{backgroundColor:card.accent,transform:[{perspective:1000},{rotateY:front}]}]}><Text style={s.tag}>{card.tag}</Text><Text style={s.cardIcon}>{card.icon}</Text><Text style={s.q}>{card.question}</Text><Text style={s.hint}>اضغط لقلب البطاقة 👆</Text></Animated.View><Animated.View style={[s.card,s.answerCard,{transform:[{perspective:1000},{rotateY:back}]}]}><Text style={[s.answerLabel,{color:card.accent}]}>💡 الإجابة</Text><Text style={s.answer}>{card.answer}</Text></Animated.View></Pressable><View style={s.controls}><Pressable style={s.control} onPress={prev}><Text style={s.controlText}>→ السابقة</Text></Pressable><Pressable style={[s.flip,{backgroundColor:card.accent}]} onPress={flip}><Text style={s.btnText}>🔄 قلب البطاقة</Text></Pressable><Pressable style={s.control} onPress={next}><Text style={s.controlText}>التالية ←</Text></Pressable></View><View style={s.challenge}><Text style={s.challengeTitle}>🏆 تحدي سريع</Text><Text style={s.challengeText}>حاول الإجابة قبل قلب البطاقة.</Text></View></ScrollView></SafeAreaView>;
+ if(!subject) return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.content}><Pressable onPress={()=>router.back()}><Text style={s.back}>‹ رجوع</Text></Pressable><Text style={s.title}>🎴 المراجعة التفاعلية 3D</Text><Text style={s.sub}>الثاني الثانوي • 24 بطاقة لكل مادة</Text><View style={s.grid}>{Object.entries(data).map(([k,v])=><Pressable key={k} style={[s.choose,{borderColor:v.cards[0].accent}]} onPress={()=>open(k)}><Text style={s.chooseIcon}>{v.icon}</Text><Text style={s.chooseTitle}>{v.title}</Text><Text style={s.count}>24 بطاقة</Text></Pressable>)}</View></ScrollView></SafeAreaView>;
+ const item=data[subject].cards[index];
+ const front=rotation.interpolate({inputRange:[0,1],outputRange:['0deg','180deg']});
+ const back=rotation.interpolate({inputRange:[0,1],outputRange:['180deg','360deg']});
+ return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.content}>
+  <Pressable onPress={()=>setSubject('')}><Text style={s.back}>‹ المواد</Text></Pressable>
+  <Text style={s.title}>{data[subject].icon} {data[subject].title}</Text>
+  <Text style={s.sub}>بطاقة {index+1} من {data[subject].cards.length} • اضغط البطاقة لقلبها</Text>
+  <View style={s.cardWrap}><Pressable onPress={flip}>
+   <Animated.View style={[s.card,s.front,{borderColor:item.accent,transform:[{perspective:1000},{rotateY:front}]}]}><Text style={s.cardIcon}>{item.icon}</Text><Text style={s.tag}>{item.tag}</Text><Text style={s.question}>{item.question}</Text><Text style={s.hint}>اضغط لإظهار الإجابة</Text></Animated.View>
+   <Animated.View style={[s.card,s.backCard,{borderColor:item.accent,transform:[{perspective:1000},{rotateY:back}]}]}><Text style={s.cardIcon}>{item.icon}</Text><Text style={s.tag}>الإجابة</Text><Text style={s.answer}>{item.answer}</Text><Text style={s.hint}>اضغط للعودة للسؤال</Text></Animated.View>
+  </Pressable></View>
+  <View style={s.actions}><Pressable style={[s.nav,{borderColor:item.accent}]} onPress={prev}><Text style={s.navText}>‹ السابقة</Text></Pressable><Pressable style={[s.nav,{borderColor:item.accent}]} onPress={next}><Text style={s.navText}>التالية ›</Text></Pressable></View>
+  <View style={s.progress}><View style={[s.progressFill,{width:`${((index+1)/data[subject].cards.length)*100}%`,backgroundColor:item.accent}]}/></View>
+ </ScrollView></SafeAreaView>;
 }
-const s=StyleSheet.create({safe:{flex:1,backgroundColor:'#F4F7FF'},content:{padding:18,paddingBottom:44},center:{flex:1,alignItems:'center',justifyContent:'center',padding:24},icon:{fontSize:58},big:{fontSize:20,fontWeight:'900',color:'#172554',textAlign:'center',marginTop:12},btn:{marginTop:20,backgroundColor:'#4338CA',paddingHorizontal:24,paddingVertical:12,borderRadius:14},btnText:{color:'#fff',fontWeight:'900'},back:{color:'#4338CA',fontWeight:'900',fontSize:16,textAlign:'right',marginBottom:10},top:{marginBottom:12},kicker:{color:'#6366F1',fontSize:11,fontWeight:'900',textAlign:'right',writingDirection:'rtl'},title:{fontSize:24,fontWeight:'900',color:'#172554',textAlign:'right',writingDirection:'rtl',marginTop:6},sub:{fontSize:13,color:'#64748B',textAlign:'right',writingDirection:'rtl',marginTop:6,marginBottom:18},grid:{flexDirection:'row-reverse',flexWrap:'wrap',justifyContent:'space-between'},choose:{width:'48.5%',backgroundColor:'#fff',borderRadius:20,borderWidth:2,padding:17,minHeight:150,marginBottom:12,elevation:3},chooseIcon:{fontSize:42,textAlign:'right'},chooseTitle:{fontSize:14,fontWeight:'900',color:'#172554',textAlign:'right',writingDirection:'rtl',marginTop:8},count:{fontSize:10,color:'#64748B',textAlign:'right',writingDirection:'rtl',marginTop:6},progress:{fontSize:12,fontWeight:'900',color:'#172554',textAlign:'right',marginTop:8},track:{height:8,backgroundColor:'#E2E8F0',borderRadius:8,overflow:'hidden',marginTop:7,marginBottom:14},fill:{height:8,borderRadius:8},stage:{height:410,marginBottom:14},card:{position:'absolute',left:0,right:0,minHeight:410,borderRadius:30,padding:24,overflow:'hidden',backfaceVisibility:'hidden',elevation:8},answerCard:{backgroundColor:'#fff',justifyContent:'center'},tag:{color:'#FFFFFFDD',fontSize:11,fontWeight:'900',textAlign:'right',writingDirection:'rtl'},cardIcon:{fontSize:66,textAlign:'center',marginTop:30},q:{color:'#fff',fontSize:21,fontWeight:'900',lineHeight:34,textAlign:'right',writingDirection:'rtl',marginTop:20},hint:{color:'#FFFFFFCC',fontSize:11,fontWeight:'800',textAlign:'center',marginTop:30},answerLabel:{fontSize:19,fontWeight:'900',textAlign:'right',writingDirection:'rtl',marginBottom:18},answer:{color:'#172554',fontSize:20,fontWeight:'800',lineHeight:34,textAlign:'right',writingDirection:'rtl'},controls:{flexDirection:'row-reverse',gap:7},control:{flex:1,minHeight:50,borderRadius:15,backgroundColor:'#fff',borderWidth:2,borderColor:'#E0E7FF',alignItems:'center',justifyContent:'center'},controlText:{color:'#172554',fontSize:11,fontWeight:'900'},flip:{flex:1.35,minHeight:50,borderRadius:15,alignItems:'center',justifyContent:'center'},challenge:{marginTop:14,backgroundColor:'#FFF7ED',borderRadius:20,padding:15,borderWidth:2,borderColor:'#FED7AA'},challengeTitle:{fontSize:13,fontWeight:'900',color:'#9A3412',textAlign:'right'},challengeText:{fontSize:10,color:'#C2410C',textAlign:'right',marginTop:4}});
+
+const s=StyleSheet.create({safe:{flex:1,backgroundColor:'#F8FAFC'},content:{padding:18,paddingBottom:40},back:{fontSize:17,fontWeight:'700',color:'#334155',marginBottom:14},title:{fontSize:24,fontWeight:'900',color:'#0F172A',textAlign:'center',marginVertical:8},sub:{fontSize:15,color:'#64748B',textAlign:'center',marginBottom:22},grid:{gap:14},choose:{backgroundColor:'#FFF',borderWidth:2,borderRadius:22,padding:20,alignItems:'center',shadowColor:'#000',shadowOpacity:.08,shadowRadius:8,elevation:3},chooseIcon:{fontSize:38,marginBottom:8},chooseTitle:{fontSize:18,fontWeight:'800',color:'#0F172A',textAlign:'center'},count:{marginTop:8,fontSize:14,fontWeight:'700',color:'#64748B'},cardWrap:{height:390,justifyContent:'center',alignItems:'center',marginTop:4},card:{position:'absolute',width:'100%',minHeight:350,borderWidth:3,borderRadius:28,backgroundColor:'#FFF',padding:28,alignItems:'center',justifyContent:'center',backfaceVisibility:'hidden',shadowColor:'#000',shadowOpacity:.12,shadowRadius:12,elevation:5},front:{},backCard:{},cardIcon:{fontSize:52,marginBottom:14},tag:{fontSize:14,fontWeight:'800',color:'#64748B',marginBottom:16},question:{fontSize:23,fontWeight:'900',color:'#0F172A',textAlign:'center',lineHeight:34},answer:{fontSize:20,fontWeight:'700',color:'#1E293B',textAlign:'center',lineHeight:32},hint:{fontSize:13,color:'#94A3B8',marginTop:22},actions:{flexDirection:'row',justifyContent:'space-between',gap:14,marginTop:14},nav:{flex:1,borderWidth:2,borderRadius:16,padding:15,alignItems:'center',backgroundColor:'#FFF'},navText:{fontSize:17,fontWeight:'800',color:'#0F172A'},progress:{height:8,backgroundColor:'#E2E8F0',borderRadius:8,overflow:'hidden',marginTop:22},progressFill:{height:8,borderRadius:8},center:{flex:1,alignItems:'center',justifyContent:'center',padding:24},icon:{fontSize:50},big:{fontSize:20,fontWeight:'800',textAlign:'center',marginVertical:18,color:'#0F172A'},btn:{backgroundColor:'#0F172A',paddingHorizontal:28,paddingVertical:14,borderRadius:14},btnText:{color:'#FFF',fontWeight:'800',fontSize:16}});
