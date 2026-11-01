@@ -3,7 +3,6 @@ import { db } from './firebase';
 import type { LocalStudent } from './storage';
 
 const cleanCode = (code:string) => /^\d{6}$/.test(code) ? code : null;
-const PRESENCE_TIMEOUT_MS = 2 * 60 * 1000;
 
 export async function getCloudTeacherCode(): Promise<string|null> {
   const snap = await getDoc(doc(db, 'settings', 'teacher'));
@@ -20,7 +19,6 @@ export async function getCloudStudent(code:string): Promise<LocalStudent|null> {
   const snap = await getDoc(ref);
   if (!snap.exists()) return null;
   const data = snap.data();
-  if(data.active!==false&&typeof data.activeDeviceId==='string'&&data.activeDeviceId){try{await setDoc(ref,{lastSeenAt:Date.now(),updatedAt:Date.now()},{merge:true})}catch{}}
   return { id:String(data.id || code), name:String(data.name || 'الطالب'), code, grade:String(data.grade || ''), active:data.active !== false };
 }
 
@@ -40,6 +38,10 @@ export async function deleteCloudStudent(code:string) {
   if (!cleanCode(code)) return;
   await deleteDoc(doc(db, 'students', code));
 }
+
+// Student accounts are currently also used by the teacher as a preview of the student experience.
+// Do not block login because another device has an activeDeviceId. Presence is synchronized,
+// but it must not prevent the teacher from opening any student account during testing.
 export async function claimStudentDevice(code:string,deviceId:string):Promise<'claimed'|'same-device'|'occupied'|'inactive'|'missing'> {
   if(!cleanCode(code))return 'missing';
   const ref=doc(db,'students',code);
@@ -49,17 +51,15 @@ export async function claimStudentDevice(code:string,deviceId:string):Promise<'c
     const data=snap.data();
     if(data.active===false)return 'inactive';
     const current=typeof data.activeDeviceId==='string'?data.activeDeviceId:'';
-    const lastSeen=typeof data.lastSeenAt==='number'?data.lastSeenAt:0;
-    const stale=current&&current!==deviceId&&(!lastSeen || Date.now()-lastSeen>PRESENCE_TIMEOUT_MS);
-    if(current&&current!==deviceId&&!stale)return 'occupied';
     tx.update(ref,{activeDeviceId:deviceId,lastLoginAt:serverTimestamp(),lastSeenAt:Date.now(),updatedAt:Date.now()});
     return current===deviceId?'same-device':'claimed';
   });
 }
+
 export async function touchStudentPresence(code:string,deviceId:string){
   if(!cleanCode(code))return false;
   const ref=doc(db,'students',code);
-  await runTransaction(db,async tx=>{const snap=await tx.get(ref);if(!snap.exists())return;if(snap.data().active===false)return;if(snap.data().activeDeviceId!==deviceId)return;tx.update(ref,{lastSeenAt:Date.now(),updatedAt:Date.now()})});
+  await runTransaction(db,async tx=>{const snap=await tx.get(ref);if(!snap.exists())return;if(snap.data().active===false)return;tx.update(ref,{activeDeviceId:deviceId,lastSeenAt:Date.now(),updatedAt:Date.now()})});
   return true;
 }
 export async function releaseStudentDevice(code:string,deviceId:string){
